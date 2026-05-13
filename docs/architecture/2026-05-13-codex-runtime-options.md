@@ -4,14 +4,17 @@ Date: 2026-05-13
 
 ## Decision
 
-The Codex adapter always overrides Codex reasoning effort to `low` for translation runs:
+The Codex adapter always overrides Codex model and reasoning effort for translation runs:
 
 ```sh
-codex --ask-for-approval never -c 'model_reasoning_effort="low"' exec ...
+codex --ask-for-approval never \
+  --model gpt-5.3-codex-spark \
+  -c 'model_reasoning_effort="low"' \
+  exec ...
 ```
 
 ## Reasoning
 
-Translation requests should be fast and cheap relative to normal coding-agent work. The user's global Codex config may be tuned for development work, for example `model_reasoning_effort = "xhigh"`, but this CLI should not inherit that heavier setting for simple translation.
+Translation requests should be fast and cheap relative to normal coding-agent work. The user's global Codex config may be tuned for development work, for example `model = "gpt-5.5"` and `model_reasoning_effort = "xhigh"`, but this CLI should not inherit those heavier settings for simple translation.
 
-The adapter does not override the model itself. It only sets `model_reasoning_effort` so the user's selected Codex model/provider remains intact while translation uses low reasoning.
+`gpt-5.3-codex-spark` is selected as the default Codex translation model because the Codex model catalog describes it as an ultra-fast coding model. This keeps the Agent CLI integration intact while reducing latency compared with inheriting a frontier coding model such as `gpt-5.5`.

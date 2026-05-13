@@ -9,6 +9,7 @@ has_color=0
 has_repo=0
 has_exec=0
 has_low_reasoning=0
+has_fast_model=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -26,6 +27,11 @@ while [ "$#" -gt 0 ]; do
     -c|--config)
       [ "$2" = 'model_reasoning_effort="low"' ] || exit 65
       has_low_reasoning=1
+      shift 2
+      ;;
+    -m|--model)
+      [ "$2" = "gpt-5.3-codex-spark" ] || exit 65
+      has_fast_model=1
       shift 2
       ;;
     --output-last-message)
@@ -69,6 +75,7 @@ done
 [ "$has_color" -eq 1 ] || exit 67
 [ "$has_repo" -eq 1 ] || exit 67
 [ "$has_low_reasoning" -eq 1 ] || exit 67
+[ "$has_fast_model" -eq 1 ] || exit 67
 
 prompt="$(cat)"
 case "$prompt" in

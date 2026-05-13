@@ -16,6 +16,7 @@ func TestCodexBuildCommand(t *testing.T) {
 	})
 	args := strings.Join(spec.Args, " ")
 	for _, want := range []string{
+		"gpt-5.3-codex-spark",
 		`model_reasoning_effort="low"`,
 		"exec",
 		"--skip-git-repo-check",
