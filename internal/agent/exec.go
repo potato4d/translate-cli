@@ -33,6 +33,7 @@ func Run(ctx context.Context, adapter Adapter, req translate.TranslationRequest,
 
 	runtime := RuntimeContext{
 		Timeout:         time.Duration(timeoutMS) * time.Millisecond,
+		WorkDir:         tempDir,
 		SchemaPath:      schemaPath,
 		LastMessagePath: filepath.Join(tempDir, "last-message.json"),
 	}
@@ -42,6 +43,9 @@ func Run(ctx context.Context, adapter Adapter, req translate.TranslationRequest,
 	defer cancel()
 
 	cmd := exec.CommandContext(runCtx, spec.Command, spec.Args...)
+	if spec.WorkDir != "" {
+		cmd.Dir = spec.WorkDir
+	}
 	cmd.Stdin = bytes.NewBufferString(spec.Stdin)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

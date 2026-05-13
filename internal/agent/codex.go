@@ -66,6 +66,7 @@ func (CodexAdapter) BuildCommand(req translate.TranslationRequest, runtime Runti
 			"-",
 		},
 		Stdin:    translate.BuildPlainTextPrompt(req),
+		WorkDir:  runtime.WorkDir,
 		AllowRaw: true,
 	}
 }

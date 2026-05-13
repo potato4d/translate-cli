@@ -38,8 +38,18 @@ func TestCodexBuildCommand(t *testing.T) {
 	if !spec.AllowRaw {
 		t.Fatal("AllowRaw = false, want true")
 	}
+	if spec.WorkDir != "" {
+		t.Fatalf("WorkDir = %q, want empty when runtime does not provide one", spec.WorkDir)
+	}
 	if !strings.Contains(spec.Stdin, "Return only the translated text.") {
 		t.Fatalf("stdin = %q", spec.Stdin)
+	}
+}
+
+func TestCodexBuildCommandUsesRuntimeWorkDir(t *testing.T) {
+	spec := CodexAdapter{}.BuildCommand(request(), RuntimeContext{WorkDir: "/tmp/translate-cli"})
+	if spec.WorkDir != "/tmp/translate-cli" {
+		t.Fatalf("WorkDir = %q", spec.WorkDir)
 	}
 }
 

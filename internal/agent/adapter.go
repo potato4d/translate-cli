@@ -33,6 +33,7 @@ type DetectionResult struct {
 
 type RuntimeContext struct {
 	Timeout         time.Duration
+	WorkDir         string
 	SchemaPath      string
 	LastMessagePath string
 }
@@ -41,6 +42,7 @@ type ExecSpec struct {
 	Command  string
 	Args     []string
 	Stdin    string
+	WorkDir  string
 	AllowRaw bool
 }
 
