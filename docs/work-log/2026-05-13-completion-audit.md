@@ -18,7 +18,7 @@ Implement the major MVP features in `docs/APPLICATION_DESIGN.md`, continuously d
 | `--tool codex` / `--tool claude` override | `internal/cli/parser.go`, `internal/cli/command.go`, `internal/cli/command_test.go` | Complete |
 | Unsupported tool error with available tool hint | `internal/cli/command.go`, exit rendering in `internal/errors/errors.go` | Complete |
 | `t --version` | `internal/cli/command.go`, `internal/cli/command_test.go`; verified with `go run ./cmd/t --version` -> `translate-cli 0.1.0` | Complete |
-| First-run wizard | `internal/wizard/wizard.go`, `internal/cli/command.go` setup trigger logic | Complete |
+| First-run wizard | `internal/wizard/wizard.go`, `internal/cli/command.go` setup trigger logic, `internal/wizard/wizard_test.go` | Complete |
 | Tool detection with recommendation scoring | `internal/agent/detect.go`, adapter `Detect` methods, `internal/wizard/wizard.go` | Complete |
 | Config file paths and TOML persistence | `internal/config/paths.go`, `internal/config/config.go`, `internal/config/config_test.go` | Complete |
 | Local language detection | `internal/locale/locale.go`, config defaults in `internal/config/config.go` | Complete |
