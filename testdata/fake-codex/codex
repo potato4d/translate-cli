@@ -10,6 +10,9 @@ has_repo=0
 has_exec=0
 has_low_reasoning=0
 has_fast_model=0
+has_ignore_user_config=0
+has_ignore_rules=0
+has_ephemeral=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -61,6 +64,18 @@ while [ "$#" -gt 0 ]; do
       has_repo=1
       shift
       ;;
+    --ignore-user-config)
+      has_ignore_user_config=1
+      shift
+      ;;
+    --ignore-rules)
+      has_ignore_rules=1
+      shift
+      ;;
+    --ephemeral)
+      has_ephemeral=1
+      shift
+      ;;
     *)
       shift
       ;;
@@ -76,6 +91,9 @@ done
 [ "$has_repo" -eq 1 ] || exit 67
 [ "$has_low_reasoning" -eq 1 ] || exit 67
 [ "$has_fast_model" -eq 1 ] || exit 67
+[ "$has_ignore_user_config" -eq 1 ] || exit 67
+[ "$has_ignore_rules" -eq 1 ] || exit 67
+[ "$has_ephemeral" -eq 1 ] || exit 67
 
 prompt="$(cat)"
 case "$prompt" in

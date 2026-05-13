@@ -10,8 +10,9 @@ Real `t` usage through Codex felt slow. The local Codex config had `model_reason
 
 - Added `--model gpt-5.3-codex-spark` to the Codex adapter command for faster translation responses.
 - Added `-c 'model_reasoning_effort="low"'` to the Codex adapter command before `exec`.
+- Added `--ignore-user-config`, `--ignore-rules`, and `--ephemeral` to reduce Codex session/config overhead and keep translation runs stateless.
 - Updated Codex adapter tests to assert the fast model and low reasoning override.
-- Updated `testdata/fake-codex/codex` to fail unless the fast model and low reasoning config are passed.
+- Updated `testdata/fake-codex/codex` to fail unless the fast model, low reasoning config, and stateless flags are passed.
 - Added an architecture note for this adapter runtime decision.
 
 ## Verification
