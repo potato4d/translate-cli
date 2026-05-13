@@ -1,0 +1,69 @@
+#!/bin/sh
+set -eu
+
+if [ "${1:-}" = "login" ] && [ "${2:-}" = "status" ]; then
+  exit 0
+fi
+
+if [ "${1:-}" != "exec" ]; then
+  echo "fake-codex: expected exec" >&2
+  exit 64
+fi
+
+output=""
+schema=""
+has_sandbox=0
+has_approval=0
+has_color=0
+has_repo=0
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --output-last-message)
+      output="$2"
+      shift 2
+      ;;
+    --output-schema)
+      schema="$2"
+      shift 2
+      ;;
+    --sandbox)
+      [ "$2" = "read-only" ] || exit 65
+      has_sandbox=1
+      shift 2
+      ;;
+    --ask-for-approval)
+      [ "$2" = "never" ] || exit 65
+      has_approval=1
+      shift 2
+      ;;
+    --color)
+      [ "$2" = "never" ] || exit 65
+      has_color=1
+      shift 2
+      ;;
+    --skip-git-repo-check)
+      has_repo=1
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+[ -n "$output" ] || exit 66
+[ -n "$schema" ] || exit 66
+[ "$has_sandbox" -eq 1 ] || exit 67
+[ "$has_approval" -eq 1 ] || exit 67
+[ "$has_color" -eq 1 ] || exit 67
+[ "$has_repo" -eq 1 ] || exit 67
+
+prompt="$(cat)"
+case "$prompt" in
+  *"You are a translation engine."*) ;;
+  *) echo "fake-codex: prompt missing role" >&2; exit 68 ;;
+esac
+
+printf '{"translated_text":"こんにちは"}' > "$output"
+printf 'ignored progress\n'

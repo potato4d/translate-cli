@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+
+const childProcess = require("node:child_process");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const platform = `${process.platform}-${process.arch}`;
+const exe = process.platform === "win32" ? "t.exe" : "t";
+const bundled = path.join(__dirname, "..", "vendor", platform, exe);
+const override = process.env.TRANSLATE_CLI_BIN;
+
+let command = "";
+if (fs.existsSync(bundled)) {
+  command = bundled;
+} else if (override) {
+  command = override;
+} else {
+  console.error(`error: translate-cli binary was not found for ${platform}`);
+  console.error("hint: reinstall @potato4d/translate-cli after the release asset is available");
+  process.exit(1);
+}
+
+const result = childProcess.spawnSync(command, process.argv.slice(2), {
+  stdio: "inherit"
+});
+
+if (result.error) {
+  console.error(`error: failed to run translate-cli binary: ${result.error.message}`);
+  process.exit(1);
+}
+
+process.exit(result.status === null ? 1 : result.status);

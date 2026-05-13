@@ -1,0 +1,65 @@
+#!/bin/sh
+set -eu
+
+has_bare=0
+has_prompt=0
+has_output=0
+has_schema=0
+has_session=0
+has_turns=0
+has_tools=0
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --bare)
+      has_bare=1
+      shift
+      ;;
+    -p)
+      case "${2:-}" in
+        *"You are a translation engine."*) has_prompt=1 ;;
+        *) echo "fake-claude: prompt missing role" >&2; exit 68 ;;
+      esac
+      shift 2
+      ;;
+    --output-format)
+      [ "$2" = "json" ] || exit 65
+      has_output=1
+      shift 2
+      ;;
+    --json-schema)
+      case "$2" in
+        *translated_text*) has_schema=1 ;;
+        *) exit 65 ;;
+      esac
+      shift 2
+      ;;
+    --no-session-persistence)
+      has_session=1
+      shift
+      ;;
+    --max-turns)
+      [ "$2" = "1" ] || exit 65
+      has_turns=1
+      shift 2
+      ;;
+    --tools)
+      [ "${2-}" = "" ] || exit 65
+      has_tools=1
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+[ "$has_bare" -eq 1 ] || exit 67
+[ "$has_prompt" -eq 1 ] || exit 67
+[ "$has_output" -eq 1 ] || exit 67
+[ "$has_schema" -eq 1 ] || exit 67
+[ "$has_session" -eq 1 ] || exit 67
+[ "$has_turns" -eq 1 ] || exit 67
+[ "$has_tools" -eq 1 ] || exit 67
+
+printf '{"structured_output":{"translated_text":"こんにちは"}}'

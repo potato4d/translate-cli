@@ -1,0 +1,19 @@
+{
+  "name": "@potato4d/translate-cli",
+  "version": "0.1.0",
+  "description": "Translate text through local Agent CLIs",
+  "bin": {
+    "t": "bin/t"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/potato4d/translate-cli.git"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
