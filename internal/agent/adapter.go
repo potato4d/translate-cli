@@ -18,6 +18,7 @@ type Adapter interface {
 type DetectionRuntime struct {
 	ExistingDefault string
 	EnvTool         string
+	SkipAuth        bool
 }
 
 type DetectionResult struct {
@@ -39,11 +40,12 @@ type RuntimeContext struct {
 }
 
 type ExecSpec struct {
-	Command  string
-	Args     []string
-	Stdin    string
-	WorkDir  string
-	AllowRaw bool
+	Command    string
+	Args       []string
+	Stdin      string
+	WorkDir    string
+	AllowRaw   bool
+	StreamJSON bool
 }
 
 type ExecResult struct {

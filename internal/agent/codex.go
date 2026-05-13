@@ -12,6 +12,8 @@ import (
 
 type CodexAdapter struct{}
 
+const maxCodexPromptArgBytes = 16 * 1024
+
 func (CodexAdapter) ID() string {
 	return "codex"
 }
@@ -35,6 +37,13 @@ func (a CodexAdapter) Detect(ctx context.Context, runtime DetectionRuntime) Dete
 	}
 
 	result.NonInteractive = true
+	if runtime.SkipAuth {
+		result.Authenticated = true
+		result.Status = "found"
+		result.Score = score(a.ID(), result.Found, result.Authenticated, result.NonInteractive, runtime)
+		return result
+	}
+
 	loginCtx, cancel := detectContext(ctx)
 	defer cancel()
 	login := exec.CommandContext(loginCtx, "codex", "login", "status")
@@ -49,25 +58,40 @@ func (a CodexAdapter) Detect(ctx context.Context, runtime DetectionRuntime) Dete
 }
 
 func (CodexAdapter) BuildCommand(req translate.TranslationRequest, runtime RuntimeContext) ExecSpec {
+	prompt := translate.BuildPlainTextPrompt(req)
+	args := []string{
+		"--ask-for-approval", "never",
+		"--model", "gpt-5.3-codex-spark",
+		"-c", `model_reasoning_effort="low"`,
+		"-c", "include_permissions_instructions=false",
+		"-c", "include_apps_instructions=false",
+		"-c", "include_environment_context=false",
+		"-c", "include_apply_patch_tool=false",
+		"exec",
+		"--skip-git-repo-check",
+		"--ignore-user-config",
+		"--ignore-rules",
+		"--ephemeral",
+		"--sandbox", "read-only",
+		"--color", "never",
+		"--json",
+	}
+
+	stdin := ""
+	if len(prompt) <= maxCodexPromptArgBytes {
+		args = append(args, prompt)
+	} else {
+		args = append(args, "-")
+		stdin = prompt
+	}
+
 	return ExecSpec{
-		Command: "codex",
-		Args: []string{
-			"--ask-for-approval", "never",
-			"--model", "gpt-5.3-codex-spark",
-			"-c", `model_reasoning_effort="low"`,
-			"exec",
-			"--skip-git-repo-check",
-			"--ignore-user-config",
-			"--ignore-rules",
-			"--ephemeral",
-			"--sandbox", "read-only",
-			"--color", "never",
-			"--output-last-message", runtime.LastMessagePath,
-			"-",
-		},
-		Stdin:    translate.BuildPlainTextPrompt(req),
-		WorkDir:  runtime.WorkDir,
-		AllowRaw: true,
+		Command:    "codex",
+		Args:       args,
+		Stdin:      stdin,
+		WorkDir:    runtime.WorkDir,
+		AllowRaw:   true,
+		StreamJSON: true,
 	}
 }
 

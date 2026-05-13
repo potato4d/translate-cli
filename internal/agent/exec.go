@@ -1,13 +1,16 @@
 package agent
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -26,15 +29,10 @@ func Run(ctx context.Context, adapter Adapter, req translate.TranslationRequest,
 	}
 	defer os.RemoveAll(tempDir)
 
-	schemaPath := filepath.Join(tempDir, "schema.json")
-	if err := os.WriteFile(schemaPath, []byte(translate.JSONSchema), 0600); err != nil {
-		return translate.TranslationResult{}, err
-	}
-
 	runtime := RuntimeContext{
 		Timeout:         time.Duration(timeoutMS) * time.Millisecond,
-		WorkDir:         tempDir,
-		SchemaPath:      schemaPath,
+		WorkDir:         tempWorkDir(),
+		SchemaPath:      filepath.Join(tempDir, "schema.json"),
 		LastMessagePath: filepath.Join(tempDir, "last-message.json"),
 	}
 	spec := adapter.BuildCommand(req, runtime)
@@ -46,7 +44,13 @@ func Run(ctx context.Context, adapter Adapter, req translate.TranslationRequest,
 	if spec.WorkDir != "" {
 		cmd.Dir = spec.WorkDir
 	}
-	cmd.Stdin = bytes.NewBufferString(spec.Stdin)
+	if spec.Stdin != "" {
+		cmd.Stdin = bytes.NewBufferString(spec.Stdin)
+	}
+	if spec.StreamJSON {
+		return runStreamingJSON(runCtx, adapter, cmd, timeoutMS)
+	}
+
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -70,6 +74,74 @@ func Run(ctx context.Context, adapter Adapter, req translate.TranslationRequest,
 		Stderr:          stderr.String(),
 		LastMessageText: lastMessage,
 	})
+}
+
+func runStreamingJSON(ctx context.Context, adapter Adapter, cmd *exec.Cmd, timeoutMS int) (translate.TranslationResult, error) {
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return translate.TranslationResult{}, err
+	}
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Start(); err != nil {
+		return translate.TranslationResult{}, agentRunError(adapter.ID(), err, stderr.String())
+	}
+
+	var stdout strings.Builder
+	finalText := ""
+	scanner := bufio.NewScanner(stdoutPipe)
+	for scanner.Scan() {
+		line := scanner.Text()
+		stdout.WriteString(line)
+		stdout.WriteByte('\n')
+		if text, ok := jsonAgentMessage(line); ok {
+			finalText = text
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+			}
+			break
+		}
+	}
+	scanErr := scanner.Err()
+	waitErr := cmd.Wait()
+
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return translate.TranslationResult{}, apperrors.New(apperrors.CodeTimeout, "translation timed out after %ds", timeoutMS/1000)
+	}
+	if finalText != "" {
+		return adapter.ExtractResult(ExecResult{
+			Stdout: finalText,
+			Stderr: stderr.String(),
+		})
+	}
+	if scanErr != nil {
+		return translate.TranslationResult{}, scanErr
+	}
+	if waitErr != nil {
+		return translate.TranslationResult{}, agentRunError(adapter.ID(), waitErr, stderr.String())
+	}
+	return adapter.ExtractResult(ExecResult{
+		Stdout: stdout.String(),
+		Stderr: stderr.String(),
+	})
+}
+
+func jsonAgentMessage(line string) (string, bool) {
+	var event struct {
+		Type string `json:"type"`
+		Item struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"item"`
+	}
+	if err := json.Unmarshal([]byte(line), &event); err != nil {
+		return "", false
+	}
+	if event.Type != "item.completed" || event.Item.Type != "agent_message" {
+		return "", false
+	}
+	return event.Item.Text, strings.TrimSpace(event.Item.Text) != ""
 }
 
 func agentRunError(id string, runErr error, stderr string) error {
@@ -109,4 +181,13 @@ func parseError(id string, err error) error {
 		apperrors.New(apperrors.CodeAgentExecution, "failed to parse translation result from %s", id),
 		fmt.Sprintf("%s: %s", "run with --debug to inspect raw output", err),
 	)
+}
+
+func tempWorkDir() string {
+	if runtime.GOOS != "windows" {
+		if stat, err := os.Stat("/tmp"); err == nil && stat.IsDir() {
+			return "/tmp"
+		}
+	}
+	return os.TempDir()
 }

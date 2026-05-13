@@ -93,7 +93,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer, 
 		)
 	}
 
-	detection := adapter.Detect(ctx, agent.DetectionRuntime{ExistingDefault: cfg.DefaultTool, EnvTool: os.Getenv("TRANSLATE_CLI_TOOL")})
+	detection := adapter.Detect(ctx, agent.DetectionRuntime{ExistingDefault: cfg.DefaultTool, EnvTool: os.Getenv("TRANSLATE_CLI_TOOL"), SkipAuth: true})
 	if !detection.Found {
 		return apperrors.New(apperrors.CodeToolNotFound, "tool %q is not installed or not found in PATH", toolID)
 	}
@@ -127,7 +127,7 @@ func needsWizard(cfg config.Config, exists bool) bool {
 	if !ok {
 		return true
 	}
-	detection := adapter.Detect(context.Background(), agent.DetectionRuntime{ExistingDefault: cfg.DefaultTool, EnvTool: os.Getenv("TRANSLATE_CLI_TOOL")})
+	detection := adapter.Detect(context.Background(), agent.DetectionRuntime{ExistingDefault: cfg.DefaultTool, EnvTool: os.Getenv("TRANSLATE_CLI_TOOL"), SkipAuth: true})
 	return !detection.Found
 }
 

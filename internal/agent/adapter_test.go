@@ -18,6 +18,10 @@ func TestCodexBuildCommand(t *testing.T) {
 	for _, want := range []string{
 		"gpt-5.3-codex-spark",
 		`model_reasoning_effort="low"`,
+		"include_permissions_instructions=false",
+		"include_apps_instructions=false",
+		"include_environment_context=false",
+		"include_apply_patch_tool=false",
 		"exec",
 		"--skip-git-repo-check",
 		"--ignore-user-config",
@@ -26,7 +30,7 @@ func TestCodexBuildCommand(t *testing.T) {
 		"--sandbox read-only",
 		"--ask-for-approval never",
 		"--color never",
-		"--output-last-message /tmp/out.json",
+		"--json",
 	} {
 		if !strings.Contains(args, want) {
 			t.Fatalf("args = %q, missing %q", args, want)
@@ -38,8 +42,29 @@ func TestCodexBuildCommand(t *testing.T) {
 	if !spec.AllowRaw {
 		t.Fatal("AllowRaw = false, want true")
 	}
+	if !spec.StreamJSON {
+		t.Fatal("StreamJSON = false, want true")
+	}
 	if spec.WorkDir != "" {
 		t.Fatalf("WorkDir = %q, want empty when runtime does not provide one", spec.WorkDir)
+	}
+	if spec.Stdin != "" {
+		t.Fatalf("Stdin = %q, want empty for prompt-arg Codex fast path", spec.Stdin)
+	}
+	if !strings.Contains(args, "Return only the translated text.") {
+		t.Fatalf("args = %q, missing prompt", args)
+	}
+}
+
+func TestCodexBuildCommandFallsBackToStdinForLargePrompt(t *testing.T) {
+	req := request()
+	req.Text = strings.Repeat("x", maxCodexPromptArgBytes+1)
+
+	spec := CodexAdapter{}.BuildCommand(req, RuntimeContext{})
+	args := strings.Join(spec.Args, " ")
+
+	if !strings.HasSuffix(args, " -") {
+		t.Fatalf("args = %q, want stdin marker for large prompt", args)
 	}
 	if !strings.Contains(spec.Stdin, "Return only the translated text.") {
 		t.Fatalf("stdin = %q", spec.Stdin)
@@ -47,8 +72,8 @@ func TestCodexBuildCommand(t *testing.T) {
 }
 
 func TestCodexBuildCommandUsesRuntimeWorkDir(t *testing.T) {
-	spec := CodexAdapter{}.BuildCommand(request(), RuntimeContext{WorkDir: "/tmp/translate-cli"})
-	if spec.WorkDir != "/tmp/translate-cli" {
+	spec := CodexAdapter{}.BuildCommand(request(), RuntimeContext{WorkDir: "/tmp"})
+	if spec.WorkDir != "/tmp" {
 		t.Fatalf("WorkDir = %q", spec.WorkDir)
 	}
 }

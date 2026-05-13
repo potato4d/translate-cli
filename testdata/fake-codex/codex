@@ -12,6 +12,12 @@ has_fast_model=0
 has_ignore_user_config=0
 has_ignore_rules=0
 has_ephemeral=0
+has_json=0
+has_no_permissions=0
+has_no_apps=0
+has_no_environment=0
+has_no_apply_patch=0
+prompt_arg=""
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -27,8 +33,26 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     -c|--config)
-      [ "$2" = 'model_reasoning_effort="low"' ] || exit 65
-      has_low_reasoning=1
+      case "$2" in
+        'model_reasoning_effort="low"')
+          has_low_reasoning=1
+          ;;
+        include_permissions_instructions=false)
+          has_no_permissions=1
+          ;;
+        include_apps_instructions=false)
+          has_no_apps=1
+          ;;
+        include_environment_context=false)
+          has_no_environment=1
+          ;;
+        include_apply_patch_tool=false)
+          has_no_apply_patch=1
+          ;;
+        *)
+          exit 65
+          ;;
+      esac
       shift 2
       ;;
     -m|--model)
@@ -39,6 +63,10 @@ while [ "$#" -gt 0 ]; do
     --output-last-message)
       output="$2"
       shift 2
+      ;;
+    --json)
+      has_json=1
+      shift
       ;;
     --sandbox)
       [ "$2" = "read-only" ] || exit 65
@@ -72,13 +100,16 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     *)
+      if [ "${1#-}" = "$1" ]; then
+        prompt_arg="$1"
+      fi
       shift
       ;;
   esac
 done
 
 [ "$has_exec" -eq 1 ] || exit 64
-[ -n "$output" ] || exit 66
+[ "$has_json" -eq 1 ] || exit 66
 [ "$has_sandbox" -eq 1 ] || exit 67
 [ "$has_approval" -eq 1 ] || exit 67
 [ "$has_color" -eq 1 ] || exit 67
@@ -88,12 +119,24 @@ done
 [ "$has_ignore_user_config" -eq 1 ] || exit 67
 [ "$has_ignore_rules" -eq 1 ] || exit 67
 [ "$has_ephemeral" -eq 1 ] || exit 67
+[ "$has_no_permissions" -eq 1 ] || exit 67
+[ "$has_no_apps" -eq 1 ] || exit 67
+[ "$has_no_environment" -eq 1 ] || exit 67
+[ "$has_no_apply_patch" -eq 1 ] || exit 67
 
-prompt="$(cat)"
+if [ -n "$prompt_arg" ]; then
+  prompt="$prompt_arg"
+else
+  prompt="$(cat)"
+fi
 case "$prompt" in
   *"Return only the translated text."*) ;;
   *) echo "fake-codex: prompt missing raw text instruction" >&2; exit 68 ;;
 esac
 
-printf 'こんにちは' > "$output"
-printf 'ignored progress\n'
+printf '{"type":"thread.started","thread_id":"fake"}\n'
+printf '{"type":"turn.started"}\n'
+printf '{"type":"item.completed","item":{"type":"agent_message","text":"こんにちは"}}\n'
+if [ -n "$output" ]; then
+  printf 'こんにちは' > "$output"
+fi
