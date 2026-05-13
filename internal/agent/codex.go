@@ -52,10 +52,10 @@ func (CodexAdapter) BuildCommand(req translate.TranslationRequest, runtime Runti
 	return ExecSpec{
 		Command: "codex",
 		Args: []string{
+			"--ask-for-approval", "never",
 			"exec",
 			"--skip-git-repo-check",
 			"--sandbox", "read-only",
-			"--ask-for-approval", "never",
 			"--color", "never",
 			"--output-schema", runtime.SchemaPath,
 			"--output-last-message", runtime.LastMessagePath,

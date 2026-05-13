@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	apperrors "github.com/potato4d/translate-cli/internal/errors"
@@ -71,20 +72,32 @@ func agentRunError(id string, runErr error, stderr string) error {
 	switch id {
 	case "codex":
 		return apperrors.WithHint(
-			apperrors.New(apperrors.CodeAgentExecution, "codex failed to run: %s", runErr),
+			apperrors.New(apperrors.CodeAgentExecution, "codex failed to run: %s", runErrorMessage(runErr, stderr)),
 			"Run: codex",
 		)
 	case "claude":
 		return apperrors.WithHint(
-			apperrors.New(apperrors.CodeAgentExecution, "claude failed to run: %s", runErr),
+			apperrors.New(apperrors.CodeAgentExecution, "claude failed to run: %s", runErrorMessage(runErr, stderr)),
 			"Run: claude",
 		)
 	default:
 		if stderr != "" {
-			return apperrors.New(apperrors.CodeAgentExecution, "%s failed to run: %s: %s", id, runErr, stderr)
+			return apperrors.New(apperrors.CodeAgentExecution, "%s failed to run: %s", id, runErrorMessage(runErr, stderr))
 		}
 		return apperrors.New(apperrors.CodeAgentExecution, "%s failed to run: %s", id, runErr)
 	}
+}
+
+func runErrorMessage(runErr error, stderr string) string {
+	stderr = strings.TrimSpace(stderr)
+	if stderr == "" {
+		return runErr.Error()
+	}
+	stderr = strings.Join(strings.Fields(stderr), " ")
+	if len(stderr) > 500 {
+		stderr = stderr[:500] + "..."
+	}
+	return fmt.Sprintf("%s: %s", runErr, stderr)
 }
 
 func parseError(id string, err error) error {
