@@ -62,11 +62,11 @@ func (CodexAdapter) BuildCommand(req translate.TranslationRequest, runtime Runti
 			"--ephemeral",
 			"--sandbox", "read-only",
 			"--color", "never",
-			"--output-schema", runtime.SchemaPath,
 			"--output-last-message", runtime.LastMessagePath,
 			"-",
 		},
-		Stdin: translate.BuildPrompt(req),
+		Stdin:    translate.BuildPlainTextPrompt(req),
+		AllowRaw: true,
 	}
 }
 
@@ -75,7 +75,7 @@ func (a CodexAdapter) ExtractResult(raw ExecResult) (translate.TranslationResult
 	if strings.TrimSpace(source) == "" {
 		source = raw.Stdout
 	}
-	result, err := output.Normalize(source)
+	result, err := output.NormalizeAllowRaw(source)
 	if err != nil {
 		return translate.TranslationResult{}, parseError(a.ID(), err)
 	}

@@ -26,14 +26,19 @@ func TestCodexBuildCommand(t *testing.T) {
 		"--sandbox read-only",
 		"--ask-for-approval never",
 		"--color never",
-		"--output-schema /tmp/schema.json",
 		"--output-last-message /tmp/out.json",
 	} {
 		if !strings.Contains(args, want) {
 			t.Fatalf("args = %q, missing %q", args, want)
 		}
 	}
-	if !strings.Contains(spec.Stdin, "You are a translation engine.") {
+	if strings.Contains(args, "--output-schema") {
+		t.Fatalf("args = %q, must not use output schema in fast Codex path", args)
+	}
+	if !spec.AllowRaw {
+		t.Fatal("AllowRaw = false, want true")
+	}
+	if !strings.Contains(spec.Stdin, "Return only the translated text.") {
 		t.Fatalf("stdin = %q", spec.Stdin)
 	}
 }

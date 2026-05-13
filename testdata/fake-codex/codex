@@ -2,7 +2,6 @@
 set -eu
 
 output=""
-schema=""
 has_sandbox=0
 has_approval=0
 has_color=0
@@ -39,10 +38,6 @@ while [ "$#" -gt 0 ]; do
       ;;
     --output-last-message)
       output="$2"
-      shift 2
-      ;;
-    --output-schema)
-      schema="$2"
       shift 2
       ;;
     --sandbox)
@@ -84,7 +79,6 @@ done
 
 [ "$has_exec" -eq 1 ] || exit 64
 [ -n "$output" ] || exit 66
-[ -n "$schema" ] || exit 66
 [ "$has_sandbox" -eq 1 ] || exit 67
 [ "$has_approval" -eq 1 ] || exit 67
 [ "$has_color" -eq 1 ] || exit 67
@@ -97,9 +91,9 @@ done
 
 prompt="$(cat)"
 case "$prompt" in
-  *"You are a translation engine."*) ;;
-  *) echo "fake-codex: prompt missing role" >&2; exit 68 ;;
+  *"Return only the translated text."*) ;;
+  *) echo "fake-codex: prompt missing raw text instruction" >&2; exit 68 ;;
 esac
 
-printf '{"translated_text":"こんにちは"}' > "$output"
+printf 'こんにちは' > "$output"
 printf 'ignored progress\n'

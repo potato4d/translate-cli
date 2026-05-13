@@ -29,6 +29,28 @@ func TestBuildPromptTargetSnapshot(t *testing.T) {
 	assertSnapshot(t, "prompt_target.snap", prompt)
 }
 
+func TestBuildPlainTextPrompt(t *testing.T) {
+	target := locale.MustLanguage("ja")
+	prompt := BuildPlainTextPrompt(TranslationRequest{
+		Text:       "Good morning",
+		TargetLang: &target,
+		LocalLang:  locale.MustLanguage("en"),
+		Mode:       ModeTarget,
+	})
+	for _, want := range []string{
+		"Return only the translated text.",
+		"Translate the text into Japanese.",
+		"<text>\nGood morning\n</text>",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("prompt missing %q:\n%s", want, prompt)
+		}
+	}
+	if strings.Contains(prompt, "Return only JSON") {
+		t.Fatalf("plain text prompt should not request JSON:\n%s", prompt)
+	}
+}
+
 func assertSnapshot(t *testing.T, name string, got string) {
 	t.Helper()
 	path := filepath.Join("__snapshots__", name)
