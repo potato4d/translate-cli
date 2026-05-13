@@ -36,6 +36,8 @@ Date: 2026-05-13
 - Ran `node --check npm/bin/t` successfully.
 - Ran `node --check npm/scripts/postinstall.js` successfully.
 - Ran `git diff --check` successfully.
+- Installed GoReleaser locally and ran `goreleaser release --snapshot --clean --skip=publish` successfully.
+- Confirmed the snapshot release generated `t-darwin-arm64.tar.gz`, `t-darwin-amd64.tar.gz`, `t-linux-amd64.tar.gz`, `t-linux-arm64.tar.gz`, and `t-windows-amd64.zip`.
 - CI workflow has been added to run `go test ./...` with `actions/setup-go`.
 
 ## Notes
@@ -43,3 +45,4 @@ Date: 2026-05-13
 - `docs/APPLICATION_DESIGN.md` has internal scope tension around npm wrapper timing. The implementation includes npm wrapper scaffolding to satisfy the MVP table in section 16.
 - `--setup` and `--no-wizard` are implemented because setup messages and wizard conditions reference them, even though `--no-wizard` is listed as a future candidate elsewhere.
 - The npm wrapper fails clearly if the bundled binary is unavailable instead of recursively invoking itself through `t`.
+- `goreleaser check` reports the Homebrew Formula publisher as deprecated in GoReleaser v2.15.4. The Formula publisher is intentionally retained because the application design explicitly requires Homebrew Formula support.
