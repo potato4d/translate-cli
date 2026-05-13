@@ -16,7 +16,8 @@
   - 関連 docs の確認
   - 既存ファイル構成の確認
 - 仕様から受け入れ条件をチェックリスト化してから実装する。
-- Go 実装では標準ライブラリを優先し、依存追加は必要性が明確な場合だけにする。
+- Node.js / TypeScript 実装では標準ライブラリを優先し、依存追加は必要性が明確な場合だけにする。
+- GitHub Release / Homebrew 向けの配布物は Bun の `--compile` で作る単体バイナリを前提にする。
 - CLI、設定、Adapter、Prompt、Output Normalizer、Wizard などの責務を分離する。
 - 実 Agent CLI はテストで直接呼ばず、`testdata/` の fake CLI で検証する。
 
@@ -31,19 +32,15 @@
 変更後は可能な限り次を実行する。
 
 ```sh
-gofmt -w <changed-go-files>
-go test ./...
-go vet ./...
-go build -o /tmp/translate-cli-t ./cmd/t
-go run ./cmd/t --version
-node --check npm/bin/t
-node --check npm/scripts/postinstall.js
-goreleaser check
-goreleaser release --snapshot --clean --skip=publish
+npm ci --prefix npm
+npm test --prefix npm
+node npm/dist/t.js --version
+npm run test:binary --prefix npm
+npm run build:release --prefix npm
 git diff --check
 ```
 
-GoReleaser の Homebrew Formula warning は、Formula 配布が設計要件である限り許容する。ただし、設定自体が valid で snapshot release が成功することを確認する。
+`npm run build:release --prefix npm` は `dist/` に release archive、checksum、Homebrew Formula を生成する。Formula 配布が設計要件であるため、生成された Formula に Node.js 依存が入っていないことを確認する。
 
 ## Git 運用
 

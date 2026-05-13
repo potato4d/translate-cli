@@ -19,17 +19,26 @@ When the target language is omitted, `t` asks the Agent to translate between the
 
 ## Install
 
-From source:
-
-```sh
-go install github.com/potato4d/translate-cli/cmd/t@latest
-```
-
-Homebrew and npm packaging are scaffolded for releases:
+Homebrew installs the prebuilt Bun single-file executable from the release archive and does not require Node.js:
 
 ```sh
 brew install potato4d/tap/translate-cli
+```
+
+npm installs the Node.js implementation directly and requires Node.js 20 or newer:
+
+```sh
 npm i -g @potato4d/translate-cli
+```
+
+From source:
+
+```sh
+git clone https://github.com/potato4d/translate-cli.git
+cd translate-cli
+npm ci --prefix npm
+npm run build --prefix npm
+npm link --prefix npm
 ```
 
 ## Setup
@@ -62,13 +71,12 @@ enabled = true
 ```
 
 For tests or custom automation, set `TRANSLATE_CLI_CONFIG` to override the config path. `TRANSLATE_CLI_TOOL` overrides the default tool when `--tool` is not supplied.
-The npm wrapper also supports `TRANSLATE_CLI_BIN` as an explicit path to a local `t` binary when a bundled release asset is unavailable.
 
 ## Supported Agent CLIs
 
 ### Codex
 
-`t` uses `codex exec` with a read-only sandbox, approval disabled, color disabled, JSON schema output, and a final-message output file.
+`t` uses `codex exec` with a read-only sandbox, approval disabled, color disabled, low reasoning, the Spark model, and JSON event streaming. For short inputs, the prompt is passed as a positional argument; large prompts fall back to stdin.
 
 ### Claude
 
@@ -77,8 +85,13 @@ The npm wrapper also supports `TRANSLATE_CLI_BIN` as an explicit path to a local
 ## Development
 
 ```sh
-go test ./...
-go run ./cmd/t --version
+npm ci --prefix npm
+npm test --prefix npm
+node npm/dist/t.js --version
+npm run test:binary --prefix npm
+npm run build:release --prefix npm
 ```
 
-The test suite uses fake CLIs under `testdata/` and does not call real Codex or Claude processes.
+The TypeScript test suite uses fake CLIs under `testdata/` and does not call real Codex or Claude processes. The npm package has no runtime dependencies; TypeScript and Bun are used only to build, test, and release the CLI.
+
+`npm run build:release --prefix npm` writes OS/architecture-specific archives and a Homebrew formula under `dist/`. The x64 Bun targets use baseline builds for wider CPU compatibility.
