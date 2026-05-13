@@ -53,6 +53,7 @@ func (CodexAdapter) BuildCommand(req translate.TranslationRequest, runtime Runti
 		Command: "codex",
 		Args: []string{
 			"--ask-for-approval", "never",
+			"-c", `model_reasoning_effort="low"`,
 			"exec",
 			"--skip-git-repo-check",
 			"--sandbox", "read-only",
