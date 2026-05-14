@@ -21,8 +21,9 @@ const formulaDir = path.join(distDir, "homebrew", "Formula");
 const packageJSON = JSON.parse(readFileSync(path.join(repoDir, "package.json"), "utf8"));
 
 const version = process.env.RELEASE_VERSION || packageJSON.version;
-const tag = process.env.RELEASE_TAG || `v${version}`;
 const repository = process.env.RELEASE_REPOSITORY || "potato4d/translate-cli";
+const formulaRepository = process.env.FORMULA_REPOSITORY || "potato4d/homebrew-tap";
+const formulaTag = process.env.FORMULA_TAG || `translate-cli-v${version}`;
 
 const targets = [
   {
@@ -137,7 +138,7 @@ function hashFile(file) {
 }
 
 function releaseURL(archive) {
-  return `https://github.com/${repository}/releases/download/${tag}/${archive}`;
+  return `https://github.com/${formulaRepository}/releases/download/${formulaTag}/${archive}`;
 }
 
 function homebrewFormula(archives) {
