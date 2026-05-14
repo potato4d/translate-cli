@@ -11,6 +11,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      HOMEBREW_TAP_TOKEN_PRESENT: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,16 +24,67 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build:release
-      - name: Create GitHub release
+      - name: Create or update GitHub release
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            dist/t-darwin-amd64.tar.gz \
-            dist/t-darwin-arm64.tar.gz \
-            dist/t-linux-amd64.tar.gz \
-            dist/t-linux-arm64.tar.gz \
-            dist/t-windows-amd64.zip \
-            dist/checksums.txt \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes
+          assets=(
+            dist/t-darwin-amd64.tar.gz
+            dist/t-darwin-arm64.tar.gz
+            dist/t-linux-amd64.tar.gz
+            dist/t-linux-arm64.tar.gz
+            dist/t-windows-amd64.zip
+            dist/checksums.txt
+          )
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create or update Homebrew tap release
+        if: ${{ env.HOMEBREW_TAP_TOKEN_PRESENT == 'true' }}
+        run: |
+          tag="translate-cli-$GITHUB_REF_NAME"
+          assets=(
+            dist/t-darwin-amd64.tar.gz
+            dist/t-darwin-arm64.tar.gz
+            dist/t-linux-amd64.tar.gz
+            dist/t-linux-arm64.tar.gz
+            dist/t-windows-amd64.zip
+            dist/checksums.txt
+          )
+          if gh release view "$tag" --repo potato4d/homebrew-tap >/dev/null 2>&1; then
+            gh release upload "$tag" "${assets[@]}" --clobber --repo potato4d/homebrew-tap
+          else
+            gh release create "$tag" "${assets[@]}" \
+              --repo potato4d/homebrew-tap \
+              --title "translate-cli $GITHUB_REF_NAME" \
+              --notes "Homebrew release assets for translate-cli $GITHUB_REF_NAME."
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      - name: Checkout Homebrew tap
+        if: ${{ env.HOMEBREW_TAP_TOKEN_PRESENT == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          repository: potato4d/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+      - name: Update Homebrew formula
+        if: ${{ env.HOMEBREW_TAP_TOKEN_PRESENT == 'true' }}
+        run: |
+          mkdir -p homebrew-tap/Formula
+          cp dist/homebrew/Formula/translate-cli.rb homebrew-tap/Formula/translate-cli.rb
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- Formula/translate-cli.rb; then
+            exit 0
+          fi
+          git add Formula/translate-cli.rb
+          git commit -m "Update translate-cli formula to $GITHUB_REF_NAME"
+          git push
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

@@ -13,6 +13,7 @@ Date: 2026-05-14
 - Published Homebrew release assets to the public tap release `translate-cli-v0.1.0`.
 - Updated the Formula URLs to use the public tap release assets.
 - Changed `scripts/build-release.mjs` so generated Formula URLs default to `potato4d/homebrew-tap` and `translate-cli-v<version>`.
+- Made the source release workflow idempotent and added optional tap release/formula publishing via `HOMEBREW_TAP_TOKEN`.
 
 ## Verification
 
