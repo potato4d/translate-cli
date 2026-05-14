@@ -18,24 +18,24 @@ The Bun executable ran real Codex translations successfully:
 
 | Run | Command | Result | Elapsed |
 | --- | --- | --- | --- |
-| 1 | `npm/dist/t-bun ja hello` | `こんにちは` | 2.36s |
-| 2 | `npm/dist/t-bun ja hello` | `こんにちは` | 2.39s |
-| 3 | `npm/dist/t-bun ja hello` | `こんにちは` | 3.94s |
+| 1 | `dist/t-bun ja hello` | `こんにちは` | 2.36s |
+| 2 | `dist/t-bun ja hello` | `こんにちは` | 2.39s |
+| 3 | `dist/t-bun ja hello` | `こんにちは` | 3.94s |
 
 This is within the expected Codex/server latency envelope and does not regress the previous Go or Node.js measurements.
 
 ## Change
 
 - Added Bun as a dev dependency.
-- Added `npm run build:binary --prefix npm` for a local compiled executable.
-- Added `npm run build:release --prefix npm` to build release archives, checksums, and a Homebrew formula.
+- Added `npm run build:binary` for a local compiled executable.
+- Added `npm run build:release` to build release archives, checksums, and a Homebrew formula.
 - Removed Go source files and `.goreleaser.yml`.
-- Kept npm distribution on `dist/t.js` so npm users only need Node.js 20 or newer.
+- Kept npm distribution on `dist/t.js` at the project root so npm users only need Node.js 20 or newer.
 - Kept Homebrew distribution on compiled `t` executables so Homebrew users do not need Node.js.
 
 ## Verification
 
-- `npm test --prefix npm` passed.
-- `npm run test:binary --prefix npm` passed.
-- `npm run build:release --prefix npm` generated all release artifacts.
+- `npm test` passed.
+- `npm run test:binary` passed.
+- `npm run build:release` generated all release artifacts.
 - `dist/release/darwin-arm64/t --version` printed `translate-cli 0.1.0`.

@@ -14,12 +14,11 @@ import {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const packageDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const repoDir = path.resolve(packageDir, "..");
+const repoDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = path.join(repoDir, "dist");
 const releaseDir = path.join(distDir, "release");
 const formulaDir = path.join(distDir, "homebrew", "Formula");
-const packageJSON = JSON.parse(readFileSync(path.join(packageDir, "package.json"), "utf8"));
+const packageJSON = JSON.parse(readFileSync(path.join(repoDir, "package.json"), "utf8"));
 
 const version = process.env.RELEASE_VERSION || packageJSON.version;
 const tag = process.env.RELEASE_TAG || `v${version}`;
@@ -78,7 +77,7 @@ for (const target of targets) {
     `--target=${target.bunTarget}`,
     "--outfile",
     binaryPath
-  ], packageDir);
+  ], repoDir);
 
   if (target.binary !== "t.exe") {
     chmodSync(binaryPath, 0o755);

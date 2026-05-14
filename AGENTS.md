@@ -32,15 +32,15 @@
 変更後は可能な限り次を実行する。
 
 ```sh
-npm ci --prefix npm
-npm test --prefix npm
-node npm/dist/t.js --version
-npm run test:binary --prefix npm
-npm run build:release --prefix npm
+npm ci
+npm test
+node dist/t.js --version
+npm run test:binary
+npm run build:release
 git diff --check
 ```
 
-`npm run build:release --prefix npm` は `dist/` に release archive、checksum、Homebrew Formula を生成する。Formula 配布が設計要件であるため、生成された Formula に Node.js 依存が入っていないことを確認する。
+`npm run build:release` は `dist/` に release archive、checksum、Homebrew Formula を生成する。Formula 配布が設計要件であるため、生成された Formula に Node.js 依存が入っていないことを確認する。
 
 ## Git 運用
 

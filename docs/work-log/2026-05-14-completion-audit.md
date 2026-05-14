@@ -10,23 +10,23 @@ Remove the Go implementation, keep the CLI behavior on Node.js + TypeScript, and
 
 | Requirement | Evidence | Status |
 | --- | --- | --- |
-| CLI implementation is Node.js + TypeScript | `npm/src/t.ts`, `npm/src/t.test.ts`, `npm/dist/t.js`, `npm/package.json` | Complete |
+| CLI implementation is Node.js + TypeScript | `src/t.ts`, `src/t.test.ts`, `dist/t.js`, `package.json` | Complete |
 | Go implementation is removed | No `*.go`, `go.mod`, or `.goreleaser.yml` files remain | Complete |
-| npm package exposes `t` directly | `npm/package.json` bin points to `dist/t.js`; `npm pack --dry-run` includes only `dist/t.js` and `package.json` | Complete |
-| Bun single-file binary builds locally | `npm run test:binary --prefix npm` builds `npm/dist/t` and prints `translate-cli 0.1.0` | Complete |
-| Release archives are Bun binaries | `npm/scripts/build-release.mjs` runs `bun build --compile` for macOS, Linux, and Windows targets | Complete |
+| npm package exposes `t` directly | `package.json` bin points to `dist/t.js`; `npm pack --dry-run` includes `dist/t.js` and `package.json` | Complete |
+| Bun single-file binary builds locally | `npm run test:binary` builds `dist/t` and prints `translate-cli 0.1.0` | Complete |
+| Release archives are Bun binaries | `scripts/build-release.mjs` runs `bun build --compile` for macOS, Linux, and Windows targets | Complete |
 | Homebrew does not require Node.js | Generated `dist/homebrew/Formula/translate-cli.rb` installs `bin.install "t"` and has no Node.js dependency | Complete |
-| Codex fast path remains optimized | `npm/src/t.ts` uses Spark, low reasoning, read-only sandbox, ignored user config/rules, `/tmp`, prompt arg passing, and JSON event streaming | Complete |
+| Codex fast path remains optimized | `src/t.ts` uses Spark, low reasoning, read-only sandbox, ignored user config/rules, `/tmp`, prompt arg passing, and JSON event streaming | Complete |
 | Bun executable speed is acceptable | Real Codex runs with the Bun executable measured 2.36s, 2.39s, and 3.94s for `ja hello` | Complete |
 | Documentation reflects the new distribution model | `README.md`, `AGENTS.md`, `docs/architecture/`, and 2026-05-14 work logs updated | Complete |
 
 ## Verification
 
-- `npm test --prefix npm` passed.
-- `npm run test:binary --prefix npm` passed.
-- `npm run build:release --prefix npm` passed.
+- `npm test` passed.
+- `npm run test:binary` passed.
+- `npm run build:release` passed.
 - `dist/release/darwin-arm64/t --version` printed `translate-cli 0.1.0`.
-- `npm pack --dry-run` from `npm/` showed `dist/t.js` and `package.json`.
+- `npm pack --dry-run` showed `dist/t.js` and `package.json`.
 - `git diff --check` passed.
 - `rg --files -g '*.go' -g 'go.mod' -g '.goreleaser.yml'` returned no files.
 

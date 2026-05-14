@@ -10,6 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "build:binary": "bun build src/t.ts --compile --outfile dist/t",
     "build:release": "node scripts/build-release.mjs",
+    "prepack": "npm run build",
     "test": "npm run build && node --test dist/t.test.js",
     "test:binary": "npm run build:binary && ./dist/t --version"
   },

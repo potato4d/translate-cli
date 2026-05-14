@@ -36,9 +36,9 @@ From source:
 ```sh
 git clone https://github.com/potato4d/translate-cli.git
 cd translate-cli
-npm ci --prefix npm
-npm run build --prefix npm
-npm link --prefix npm
+npm ci
+npm run build
+npm link
 ```
 
 ## Setup
@@ -85,13 +85,13 @@ For tests or custom automation, set `TRANSLATE_CLI_CONFIG` to override the confi
 ## Development
 
 ```sh
-npm ci --prefix npm
-npm test --prefix npm
-node npm/dist/t.js --version
-npm run test:binary --prefix npm
-npm run build:release --prefix npm
+npm ci
+npm test
+node dist/t.js --version
+npm run test:binary
+npm run build:release
 ```
 
 The TypeScript test suite uses fake CLIs under `testdata/` and does not call real Codex or Claude processes. The npm package has no runtime dependencies; TypeScript and Bun are used only to build, test, and release the CLI.
 
-`npm run build:release --prefix npm` writes OS/architecture-specific archives and a Homebrew formula under `dist/`. The x64 Bun targets use baseline builds for wider CPU compatibility.
+`npm run build:release` writes OS/architecture-specific archives and a Homebrew formula under `dist/`. The x64 Bun targets use baseline builds for wider CPU compatibility.

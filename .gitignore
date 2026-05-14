@@ -2,9 +2,7 @@
 /dist/
 /bin/
 *.test
+*.min.js
+*.min.js.map
 coverage.out
 node_modules/
-npm/vendor/
-npm/dist/*.test.js
-npm/dist/t
-npm/dist/t-bun

@@ -123,7 +123,7 @@ enabled = true
 
 function withFakePath(name: string): string {
   return [
-    path.resolve("..", "testdata", name),
+    path.resolve("testdata", name),
     process.env.PATH ?? ""
   ].join(path.delimiter);
 }
