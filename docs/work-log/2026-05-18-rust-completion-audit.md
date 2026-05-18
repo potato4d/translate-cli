@@ -22,6 +22,7 @@ Date: 2026-05-18
 | GitHub Release archive names are preserved | `.github/workflows/release.yml` matrix builds the five existing archive names | Complete |
 | Homebrew Formula has no Node.js dependency | `xtask/src/main.rs` formula template installs `t` and does not declare Node.js; formula is generated when the full release archive set is present | Complete |
 | Documentation reflects Rust state | `README.md`, `AGENTS.md`, `docs/architecture/2026-05-13-mvp-architecture.md`, `docs/architecture/2026-05-13-codex-runtime-options.md`, and this work log | Complete |
+| Changes are committed and pushed | Commit `d7d2bf8` was pushed to `origin/master`; follow-up audit note commit is pushed after this file update | Complete |
 
 ## Commands
 
