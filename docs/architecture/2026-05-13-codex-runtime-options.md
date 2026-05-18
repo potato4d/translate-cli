@@ -45,4 +45,4 @@ For short translations, Codex receives the prompt as a positional argument inste
 
 Regular translation runs skip `codex login status` preflight and let `codex exec` surface authentication failures. This avoids starting extra Codex processes on every invocation.
 
-Codex runs with `--json`, and the TypeScript runner returns as soon as the final `agent_message` item completes. The translated text is already available at that point, so the CLI does not wait for later Codex teardown.
+Codex runs with `--json`, and the Rust runner returns as soon as the final `agent_message` item completes. The translated text is already available at that point, so the CLI does not wait for later Codex teardown.

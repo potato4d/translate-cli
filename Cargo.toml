@@ -1,0 +1,17 @@
+[package]
+name = "translate-cli"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Translate text through local Agent CLIs"
+repository = "https://github.com/potato4d/translate-cli"
+
+[[bin]]
+name = "t"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = "1.0"
+
+[workspace]
+members = ["xtask"]

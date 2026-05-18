@@ -16,8 +16,8 @@
   - 関連 docs の確認
   - 既存ファイル構成の確認
 - 仕様から受け入れ条件をチェックリスト化してから実装する。
-- Node.js / TypeScript 実装では標準ライブラリを優先し、依存追加は必要性が明確な場合だけにする。
-- GitHub Release / Homebrew 向けの配布物は Bun の `--compile` で作る単体バイナリを前提にする。
+- Rust 実装では標準ライブラリを優先し、依存追加は必要性が明確な場合だけにする。
+- GitHub Release / Homebrew 向けの配布物は Cargo release build で作る単体バイナリを前提にする。
 - CLI、設定、Adapter、Prompt、Output Normalizer、Wizard などの責務を分離する。
 - 実 Agent CLI はテストで直接呼ばず、`testdata/` の fake CLI で検証する。
 
@@ -32,15 +32,15 @@
 変更後は可能な限り次を実行する。
 
 ```sh
-npm ci
-npm test
-node dist/t.js --version
-npm run test:binary
-npm run build:release
+cargo fmt --check
+cargo test --workspace
+cargo build --release
+./target/release/t --version
+cargo run -p xtask -- build-release
 git diff --check
 ```
 
-`npm run build:release` は `dist/` に release archive、checksum、Homebrew Formula を生成する。Formula 配布が設計要件であるため、生成された Formula に Node.js 依存が入っていないことを確認する。
+`cargo run -p xtask -- build-release` は `dist/` に現在の OS / arch 向け release archive と checksum を生成する。タグ release workflow では全 OS / arch の archive を集約し、Homebrew Formula も生成する。Formula 配布が設計要件であるため、生成された Formula に Node.js 依存が入っていないことを確認する。
 
 ## Git 運用
 

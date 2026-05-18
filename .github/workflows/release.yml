@@ -9,7 +9,41 @@ permissions:
   contents: write
 
 jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-13
+            target_id: darwin-amd64
+            archive: t-darwin-amd64.tar.gz
+          - os: macos-14
+            target_id: darwin-arm64
+            archive: t-darwin-arm64.tar.gz
+          - os: ubuntu-latest
+            target_id: linux-amd64
+            archive: t-linux-amd64.tar.gz
+          - os: ubuntu-24.04-arm
+            target_id: linux-arm64
+            archive: t-linux-arm64.tar.gz
+          - os: windows-latest
+            target_id: windows-amd64
+            archive: t-windows-amd64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal
+      - run: rustup default stable
+      - run: cargo test --workspace
+        if: ${{ matrix.target_id == 'linux-amd64' }}
+      - run: cargo run -p xtask -- build-release --target-id ${{ matrix.target_id }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: dist/${{ matrix.archive }}
+
   release:
+    needs: build
     runs-on: ubuntu-latest
     env:
       HOMEBREW_TAP_TOKEN_PRESENT: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
@@ -17,13 +51,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - run: rustup toolchain install stable --profile minimal
+      - run: rustup default stable
+      - uses: actions/download-artifact@v4
         with:
-          node-version: "20"
-          cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run build:release
+          path: dist
+          merge-multiple: true
+      - run: cargo run -p xtask -- write-formula
       - name: Create or update GitHub release
         run: |
           assets=(

@@ -19,16 +19,10 @@ When the target language is omitted, `t` asks the Agent to translate between the
 
 ## Install
 
-Homebrew installs the prebuilt Bun single-file executable from the release archive and does not require Node.js:
+Homebrew installs the prebuilt native executable from the release archive and does not require Node.js:
 
 ```sh
 brew install potato4d/tap/translate-cli
-```
-
-npm installs the Node.js implementation directly and requires Node.js 20 or newer:
-
-```sh
-npm i -g @potato4d/translate-cli
 ```
 
 From source:
@@ -36,9 +30,7 @@ From source:
 ```sh
 git clone https://github.com/potato4d/translate-cli.git
 cd translate-cli
-npm ci
-npm run build
-npm link
+cargo install --path .
 ```
 
 ## Setup
@@ -85,13 +77,13 @@ For tests or custom automation, set `TRANSLATE_CLI_CONFIG` to override the confi
 ## Development
 
 ```sh
-npm ci
-npm test
-node dist/t.js --version
-npm run test:binary
-npm run build:release
+cargo fmt --check
+cargo test --workspace
+cargo build --release
+./target/release/t --version
+cargo run -p xtask -- build-release
 ```
 
-The TypeScript test suite uses fake CLIs under `testdata/` and does not call real Codex or Claude processes. The npm package has no runtime dependencies; TypeScript and Bun are used only to build, test, and release the CLI.
+The Rust test suite uses fake CLIs under `testdata/` and does not call real Codex or Claude processes.
 
-`npm run build:release` writes OS/architecture-specific archives and a Homebrew formula under `dist/`. The x64 Bun targets use baseline builds for wider CPU compatibility.
+`cargo run -p xtask -- build-release` writes an OS/architecture-specific archive and checksums under `dist/`. The release workflow builds the full macOS, Linux, and Windows archive set and writes the Homebrew formula from those artifacts.
