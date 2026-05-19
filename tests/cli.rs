@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[test]
 fn prints_version() {
     let output = run_cli(&["--version"], &[], "").success();
-    assert_eq!(output.stdout, "translate-cli 0.1.0\n");
+    assert_eq!(output.stdout, "translate-cli 0.1.1\n");
     assert_eq!(output.stderr, "");
 }
 
