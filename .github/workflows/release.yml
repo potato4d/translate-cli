@@ -14,26 +14,32 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-13
+          - os: macos-14
             target_id: darwin-amd64
+            rust_target: x86_64-apple-darwin
             archive: t-darwin-amd64.tar.gz
           - os: macos-14
             target_id: darwin-arm64
+            rust_target: aarch64-apple-darwin
             archive: t-darwin-arm64.tar.gz
           - os: ubuntu-latest
             target_id: linux-amd64
+            rust_target: x86_64-unknown-linux-gnu
             archive: t-linux-amd64.tar.gz
           - os: ubuntu-24.04-arm
             target_id: linux-arm64
+            rust_target: aarch64-unknown-linux-gnu
             archive: t-linux-arm64.tar.gz
           - os: windows-latest
             target_id: windows-amd64
+            rust_target: x86_64-pc-windows-msvc
             archive: t-windows-amd64.zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - run: rustup toolchain install stable --profile minimal
       - run: rustup default stable
+      - run: rustup target add ${{ matrix.rust_target }}
       - run: cargo test --workspace
         if: ${{ matrix.target_id == 'linux-amd64' }}
       - run: cargo run -p xtask -- build-release --target-id ${{ matrix.target_id }}
