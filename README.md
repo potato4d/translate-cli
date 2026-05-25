@@ -1,5 +1,9 @@
 # translate CLI
 
+<p align="center">
+  <img src="assets/translate-cli-logo.png" alt="translate CLI logo" width="160">
+</p>
+
 `translate CLI` is a small command named `t` that delegates translation to local Agent CLIs such as Codex CLI and Claude Code.
 
 The CLI does not call model APIs directly and does not store API keys. It builds a constrained translation prompt, invokes the selected local Agent CLI in non-interactive mode, and prints only the translated text.
