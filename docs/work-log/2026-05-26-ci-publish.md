@@ -44,4 +44,36 @@ Root cause:
 - `cargo run -p xtask -- build-release`: passed and generated the current `darwin-arm64` archive locally.
 - `git diff --check`: passed.
 
-Remote CI, release, and Homebrew tap verification will be recorded after the push and release workflow complete.
+## Remote Verification
+
+- Commit `f7fb37d` was pushed to `master`.
+- CI run `26425695327` completed successfully for commit `f7fb37d`.
+- Tag `v0.1.3` was pushed to `origin`.
+- Release workflow run `26425723814` completed successfully for tag `v0.1.3`.
+- Main repo release `v0.1.3` was published with all required assets:
+  - `t-darwin-amd64.tar.gz`
+  - `t-darwin-arm64.tar.gz`
+  - `t-linux-amd64.tar.gz`
+  - `t-linux-arm64.tar.gz`
+  - `t-windows-amd64.zip`
+  - `checksums.txt`
+- The release workflow skipped Homebrew tap steps because `HOMEBREW_TAP_TOKEN` was not present in Actions.
+- Published tap release `translate-cli-v0.1.3` manually in `potato4d/homebrew-tap` with the same six assets.
+- Generated `dist/homebrew/Formula/translate-cli.rb` from the release assets and pushed tap commit `0b98f60`.
+- Verified the remote Formula:
+  - `version "0.1.3"`
+  - URLs point to `translate-cli-v0.1.3`
+  - no `node`, `npm`, or `depends_on` entries.
+- `brew update` reported `potato4d/tap` updated.
+- `brew info potato4d/tap/translate-cli` reported `0.1.2 -> stable 0.1.3`.
+- `brew upgrade potato4d/tap/translate-cli` upgraded the local install from `0.1.2` to `0.1.3`.
+- `/opt/homebrew/opt/translate-cli/bin/t --version`: `translate-cli 0.1.3`.
+
+## Completion Audit
+
+- CI is passing on the published source commit: run `26425695327` succeeded for `f7fb37d`.
+- CLI release is public: GitHub release `v0.1.3` exists and is the latest main repo release.
+- Release artifacts cover all configured platforms from `.github/workflows/release.yml`.
+- Homebrew distribution is public: tap release `translate-cli-v0.1.3` exists, and the tap Formula points at its assets.
+- Formula remains native-binary only: no Node.js dependency is present.
+- End-user install path works: Homebrew upgraded and the installed binary prints `translate-cli 0.1.3`.
