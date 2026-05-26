@@ -357,6 +357,12 @@ fn run_streaming_json(spec: &ExecSpec, id: &str, timeout_ms: u64) -> AppResult<E
                     if stderr.is_empty() { &stdout } else { &stderr },
                 ));
             }
+            if let Some(final_text) = json_agent_message_from_stream(&stdout) {
+                return Ok(ExecResult {
+                    stdout: final_text,
+                    last_message_text: String::new(),
+                });
+            }
             return Ok(ExecResult {
                 stdout,
                 last_message_text: String::new(),
@@ -467,6 +473,10 @@ pub fn json_agent_message(line: &str) -> Option<String> {
     } else {
         Some(text.to_string())
     }
+}
+
+fn json_agent_message_from_stream(stdout: &str) -> Option<String> {
+    stdout.lines().filter_map(json_agent_message).last()
 }
 
 pub fn look_path(command: &str) -> Option<String> {
@@ -601,6 +611,19 @@ mod tests {
         let line =
             r#"{"type":"item.completed","item":{"type":"agent_message","text":"こんにちは"}}"#;
         assert_eq!(json_agent_message(line).unwrap(), "こんにちは");
+    }
+
+    #[test]
+    fn extracts_codex_agent_message_from_completed_stream() {
+        let stdout = concat!(
+            "{\"type\":\"thread.started\",\"thread_id\":\"fake\"}\n",
+            "{\"type\":\"turn.started\"}\n",
+            "{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"こんにちは\"}}\n"
+        );
+        assert_eq!(
+            json_agent_message_from_stream(stdout).unwrap(),
+            "こんにちは"
+        );
     }
 
     #[test]
