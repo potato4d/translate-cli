@@ -37,7 +37,7 @@ Implement the major MVP features in `docs/APPLICATION_DESIGN.md`, continuously d
 | npm wrapper exposes `t` | `npm/package.json`, `npm/bin/t`, `npm/scripts/postinstall.js`; Node syntax checks passed | Complete |
 | README usage and setup documentation | `README.md` | Complete |
 | Work log and architecture notes | `docs/work-log/2026-05-13-mvp-implementation.md`, this audit, `docs/architecture/2026-05-13-mvp-architecture.md` | Complete |
-| Commit and push completed work units | `9a53c4a Implement translate CLI MVP`, `0f60edc Verify release packaging`, both pushed to `origin/master` | Complete |
+| Commit and push completed work units | `9a53c4a Implement Translate CLI MVP`, `0f60edc Verify release packaging`, both pushed to `origin/master` | Complete |
 
 ## Verification commands
 

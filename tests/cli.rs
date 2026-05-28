@@ -67,7 +67,7 @@ fn runs_first_run_setup() {
     )
     .success();
     assert_eq!(output.stdout, "");
-    assert!(output.stderr.contains("translate CLI setup"));
+    assert!(output.stderr.contains("Translate CLI setup"));
     assert!(output.stderr.contains("Saved config:"));
 
     let config = fs::read_to_string(config_path).unwrap();

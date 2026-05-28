@@ -47,10 +47,10 @@ pub fn run_wizard(config_path: &Path, initial_config: Config) -> AppResult<Confi
         )
     };
 
-    eprintln!("translate CLI setup\n");
-    eprintln!("translate CLI sends text to the selected Agent CLI.");
+    eprintln!("Translate CLI setup\n");
+    eprintln!("Translate CLI sends text to the selected Agent CLI.");
     eprintln!("The Agent CLI may send it to its configured model provider.");
-    eprintln!("translate CLI does not store API keys.\n");
+    eprintln!("Translate CLI does not store API keys.\n");
     eprintln!(
         "Detected your local language: {} ({})\n",
         local.name, local.code
