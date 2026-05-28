@@ -1,49 +1,101 @@
-# translate CLI
+# Translate CLI
 
 <p align="center">
-  <img src="assets/translate-cli-logo.png" alt="translate CLI logo" width="160">
+  <img src="assets/translate-cli-logo.png" alt="Translate CLI logo" width="160">
 </p>
 
-`translate CLI` is a small command named `t` that delegates translation to local Agent CLIs such as Codex CLI and Claude Code.
-
-The CLI does not call model APIs directly and does not store API keys. It builds a constrained translation prompt, invokes the selected local Agent CLI in non-interactive mode, and prints only the translated text.
-
-## Usage
+<p align="center">
+  A one-letter translation command that turns your local Agent CLI into a focused translator.
+</p>
 
 ```sh
 t "こんにちは"
-t ja "Good morning"
-t --tool codex "こんにちは"
-t --tool claude fr "Good morning"
-echo "こんにちは" | t
-echo "Good morning" | t ja
+# Hello.
+
+t ja "Ship the smallest useful version first."
+# まずは最小限で役に立つバージョンを出荷します。
 ```
 
-When the target language is omitted, `t` asks the Agent to translate between the configured local language and English. For example, with `local_lang = "ja"`, primarily English text is translated into Japanese, and other text is translated into English.
+`Translate CLI` installs a native executable named `t`. It does not call model APIs directly, does not store API keys, and does not try to become another translation service account. Instead, it delegates translation to Agent CLIs you already use locally, such as Codex CLI or Claude Code, with a constrained prompt that asks for translated text only.
 
-## Install
+## Why Use It?
 
-Homebrew installs the prebuilt native executable from the release archive and does not require Node.js:
+- **Fast from the terminal:** translate short messages, issue text, commit notes, README fragments, and stdin without opening a browser.
+- **Works with your existing Agent setup:** use Codex or Claude from the same local login and permissions you already manage.
+- **No translate-cli API secrets:** this tool stores only local preferences like default tool and local language.
+- **Built for developer text:** the prompt asks the Agent to preserve markdown, code blocks, URLs, placeholders, product names, and line breaks where appropriate.
+- **Small native binary:** the Homebrew install uses the release binary and does not require Node.js.
+
+## Quick Start
+
+Install with Homebrew:
 
 ```sh
 brew install potato4d/tap/translate-cli
 ```
 
-From source:
+Make sure at least one supported Agent CLI is installed and available on `PATH`:
 
-```sh
-git clone https://github.com/potato4d/translate-cli.git
-cd translate-cli
-cargo install --path .
-```
+- `codex`
+- `claude`
 
-## Setup
-
-On first run, `t` creates a TOML config file and asks which Agent CLI to use by default.
+Then run setup once:
 
 ```sh
 t --setup
 ```
+
+After that, translate directly:
+
+```sh
+t "レビューお願いします"
+t ja "Can you take a look at this PR?"
+t fr "The release archive is ready."
+echo "Translate stdin too" | t ja
+```
+
+## How It Feels
+
+When no target language is provided, `t` translates between your configured local language and English.
+
+For example, with `local_lang = "ja"`:
+
+| Command | Result |
+|---|---|
+| `t "この仕様を確認してください"` | Translates to English |
+| `t "Please check this spec"` | Translates to Japanese |
+| `t ja "Good morning"` | Translates to Japanese |
+| `t --tool claude fr "Good morning"` | Uses Claude and translates to French |
+
+The output is intentionally plain, so it composes with other shell tools:
+
+```sh
+git log -1 --pretty=%B | t ja
+pbpaste | t en
+cat docs/notes.md | t ja > /tmp/notes.ja.md
+```
+
+## Supported Agent CLIs
+
+### Codex
+
+`t` runs `codex exec` in non-interactive mode with a read-only sandbox, approval disabled, color disabled, low reasoning, the Spark model, and JSON event streaming. Short prompts are passed as an argument; larger prompts fall back to stdin.
+
+```sh
+t --tool codex "この文章を英語にして"
+```
+
+### Claude
+
+`t` runs `claude -p` with `--bare`, JSON output, a JSON schema, no session persistence, one turn, and no tools.
+
+```sh
+t --tool claude ja "Summarize this in Japanese."
+```
+
+## Configuration
+
+On first run, or when you run `t --setup`, the wizard creates a TOML config file and asks for your default Agent CLI and local language.
 
 Config locations:
 
@@ -51,7 +103,7 @@ Config locations:
 - Linux: `~/.config/translate-cli/config.toml`
 - Windows: `%AppData%\translate-cli\config.toml`
 
-Example:
+Example config:
 
 ```toml
 version = 1
@@ -66,17 +118,46 @@ enabled = true
 enabled = true
 ```
 
-For tests or custom automation, set `TRANSLATE_CLI_CONFIG` to override the config path. `TRANSLATE_CLI_TOOL` overrides the default tool when `--tool` is not supplied.
+Environment overrides:
 
-## Supported Agent CLIs
+- `TRANSLATE_CLI_CONFIG`: use a custom config path
+- `TRANSLATE_CLI_TOOL`: override the default tool when `--tool` is not supplied
 
-### Codex
+## Install From Source
 
-`t` uses `codex exec` with a read-only sandbox, approval disabled, color disabled, low reasoning, the Spark model, and JSON event streaming. For short inputs, the prompt is passed as a positional argument; large prompts fall back to stdin.
+```sh
+git clone https://github.com/potato4d/translate-cli.git
+cd translate-cli
+cargo install --path .
+```
 
-### Claude
+The installed binary is `t`.
 
-`t` uses `claude -p` with `--bare`, JSON output, JSON schema, no session persistence, one turn, and no tools.
+## Command Reference
+
+```text
+t <text>
+t <lang> <text>
+t --tool <tool> <text>
+t --tool <tool> <lang> <text>
+
+Options:
+  --tool <codex|claude>  Use a specific Agent CLI
+  --setup               Run first-run setup
+  --no-wizard           Fail instead of running setup automatically
+  --version             Print version
+  --help                Show help
+```
+
+Language names and common codes are accepted:
+
+```sh
+t ja "Good morning"
+t en "おはようございます"
+t zh-TW "Good morning"
+t japanese "Good morning"
+t 日本語 "Good morning"
+```
 
 ## Development
 
