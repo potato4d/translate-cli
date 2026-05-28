@@ -149,14 +149,16 @@ Options:
   --help                Show help
 ```
 
-Language names and common codes are accepted:
+Language names, common aliases, and current ISO 639-1 two-letter codes are accepted. For compatibility, `kr` maps to Korean. Unknown two-letter strings and arbitrary three-or-more-character identifiers are treated as text in positional syntax.
 
 ```sh
 t ja "Good morning"
 t en "おはようございます"
+t tl "Good morning"
 t zh-TW "Good morning"
 t japanese "Good morning"
 t 日本語 "Good morning"
+t kr "Good morning"
 ```
 
 ## Development

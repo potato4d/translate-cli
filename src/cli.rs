@@ -127,10 +127,25 @@ mod tests {
     }
 
     #[test]
+    fn parses_iso_639_1_language_arguments() {
+        let inv = parse_args(&args(&["tl", "hello"])).unwrap();
+        assert_eq!(inv.mode, TranslationMode::Target);
+        assert_eq!(inv.target_lang.unwrap().code, "tl");
+        assert_eq!(inv.text, "hello");
+    }
+
+    #[test]
     fn keeps_unresolved_first_arg_as_text() {
         let inv = parse_args(&args(&["hello", "world"])).unwrap();
         assert_eq!(inv.mode, TranslationMode::AutoPair);
         assert_eq!(inv.text, "hello world");
+    }
+
+    #[test]
+    fn keeps_unknown_two_letter_first_arg_as_text() {
+        let inv = parse_args(&args(&["go", "home"])).unwrap();
+        assert_eq!(inv.mode, TranslationMode::AutoPair);
+        assert_eq!(inv.text, "go home");
     }
 
     #[test]
