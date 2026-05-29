@@ -49,7 +49,7 @@ Add local LLM support by detecting major local LLM tools, guiding users toward a
 | Persist local model settings | `src/config.rs` reads/writes `[tools.ollama].model` and `[tools.lmstudio].model`; setup test verifies saved Ollama model | Complete |
 | Avoid real tool calls in tests | Integration tests use `testdata/fake-*` directories and remove `TRANSLATE_CLI_*` overrides | Complete |
 | Release build still works | `cargo build --release`, `./target/release/t --version`, and `cargo run -p xtask -- build-release` passed | Complete |
-| Push state | Pending at audit authoring time; this work log is intended to be committed and pushed with the implementation | Pending |
+| Push state | Implementation commit `86c2a49` was pushed to `origin/master`; this audit update is part of the follow-up push | Complete |
 
 ## Current caveats
 
