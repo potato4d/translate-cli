@@ -10,7 +10,7 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 #[test]
 fn prints_version() {
     let output = run_cli(&["--version"], &[], "").success();
-    assert_eq!(output.stdout, "translate-cli 0.1.4\n");
+    assert_eq!(output.stdout, "translate-cli 0.1.5\n");
     assert_eq!(output.stderr, "");
 }
 
