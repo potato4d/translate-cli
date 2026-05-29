@@ -1,4 +1,6 @@
-use crate::agent::{by_id, detect, DetectionRuntime, TranslationRequest};
+use crate::agent::{
+    available_tools_hint, by_id, detect, DetectionRuntime, RunOptions, TranslationRequest,
+};
 use crate::cli::{parse_args, usage};
 use crate::config::{default_config_path, load_config, Config};
 use crate::error::{AppError, AppResult, EXIT_ARGS, EXIT_CONFIG, EXIT_TOOL_NOT_FOUND};
@@ -45,22 +47,15 @@ pub fn run(args: &[String]) -> AppResult<()> {
         return Err(AppError::new(EXIT_ARGS, "missing text to translate").with_hint(usage()));
     }
 
-    let tool_id = selected_tool(&inv.tool, &config);
-    if by_id(&tool_id).is_none() {
+    let selected = selected_tool(&inv.tool, &config);
+    let Some(tool_id) = by_id(&selected).map(str::to_string) else {
         return Err(
-            AppError::new(EXIT_ARGS, format!("unsupported tool: {tool_id}"))
-                .with_hint("available tools: codex, claude"),
+            AppError::new(EXIT_ARGS, format!("unsupported tool: {selected}"))
+                .with_hint(available_tools_hint()),
         );
-    }
+    };
 
-    let detection = detect(
-        &tool_id,
-        &DetectionRuntime {
-            existing_default: config.default_tool.clone(),
-            env_tool: std::env::var("TRANSLATE_CLI_TOOL").unwrap_or_default(),
-            skip_auth: true,
-        },
-    );
+    let detection = detect(&tool_id, &detection_runtime(&config, true));
     if !detection.found {
         return Err(AppError::new(
             EXIT_TOOL_NOT_FOUND,
@@ -80,7 +75,21 @@ pub fn run(args: &[String]) -> AppResult<()> {
         local_lang: must_language(&config.local_lang),
         mode: inv.mode,
     };
-    let text = crate::agent::run_agent(&tool_id, &req, config.timeout_ms)?;
+    let run_options = config
+        .tools
+        .get(&tool_id)
+        .or_else(|| {
+            if tool_id == "lmstudio" {
+                config.tools.get("lms")
+            } else {
+                None
+            }
+        })
+        .map(|tool| RunOptions {
+            model: tool.model.clone(),
+        })
+        .unwrap_or_default();
+    let text = crate::agent::run_agent(&tool_id, &req, config.timeout_ms, &run_options)?;
     println!("{text}");
     Ok(())
 }
@@ -92,15 +101,8 @@ fn needs_wizard(config: &Config, exists: bool) -> bool {
     if by_id(&config.default_tool).is_none() {
         return true;
     }
-    let detection = detect(
-        &config.default_tool,
-        &DetectionRuntime {
-            existing_default: config.default_tool.clone(),
-            env_tool: std::env::var("TRANSLATE_CLI_TOOL").unwrap_or_default(),
-            skip_auth: true,
-        },
-    );
-    !detection.found
+    let detection = detect(&config.default_tool, &detection_runtime(config, true));
+    !detection.found || !detection.non_interactive
 }
 
 fn selected_tool(inv_tool: &str, config: &Config) -> String {
@@ -113,4 +115,22 @@ fn selected_tool(inv_tool: &str, config: &Config) -> String {
         }
     }
     config.default_tool.clone()
+}
+
+fn detection_runtime(config: &Config, skip_auth: bool) -> DetectionRuntime {
+    DetectionRuntime {
+        existing_default: config.default_tool.clone(),
+        env_tool: std::env::var("TRANSLATE_CLI_TOOL").unwrap_or_default(),
+        skip_auth,
+        tool_enabled: config
+            .tools
+            .iter()
+            .map(|(id, tool)| (id.clone(), tool.enabled))
+            .collect(),
+        tool_models: config
+            .tools
+            .iter()
+            .map(|(id, tool)| (id.clone(), tool.model.clone()))
+            .collect(),
+    }
 }

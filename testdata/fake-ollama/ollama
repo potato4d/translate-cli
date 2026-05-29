@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+
+case "${1:-}" in
+  ls|list)
+    printf 'NAME            ID              SIZE      MODIFIED\n'
+    printf 'gemma3:latest   fakeid          3.3 GB    1 hour ago\n'
+    ;;
+  run)
+    [ "${2:-}" = "gemma3:latest" ] || [ "${2:-}" = "gemma3" ] || exit 65
+    shift 2
+    if [ "$#" -gt 0 ]; then
+      prompt="$1"
+    else
+      prompt="$(cat)"
+    fi
+    case "$prompt" in
+      *"Return only the translated text."*) ;;
+      *) echo "fake-ollama: prompt missing raw text instruction" >&2; exit 68 ;;
+    esac
+    printf 'こんにちは\n'
+    ;;
+  *)
+    echo "fake-ollama: unexpected command ${1:-}" >&2
+    exit 64
+    ;;
+esac

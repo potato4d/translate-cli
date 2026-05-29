@@ -16,12 +16,12 @@ t ja "Ship the smallest useful version first."
 # まずは最小限で役に立つバージョンを出荷します。
 ```
 
-`Translate CLI` installs a native executable named `t`. It does not call model APIs directly, does not store API keys, and does not try to become another translation service account. Instead, it delegates translation to Agent CLIs you already use locally, such as Codex CLI or Claude Code, with a constrained prompt that asks for translated text only.
+`Translate CLI` installs a native executable named `t`. It does not call hosted model APIs directly, does not store API keys, and does not try to become another translation service account. Instead, it delegates translation to Agent CLIs and local LLM runners you already use, such as Codex CLI, Claude Code, Ollama, or LM Studio, with a constrained prompt that asks for translated text only.
 
 ## Why Use It?
 
 - **Fast from the terminal:** translate short messages, issue text, commit notes, README fragments, and stdin without opening a browser.
-- **Works with your existing Agent setup:** use Codex or Claude from the same local login and permissions you already manage.
+- **Works with your existing model setup:** use Codex, Claude, Ollama, or LM Studio from the same local login, model, and permission setup you already manage.
 - **No translate-cli API secrets:** this tool stores only local preferences like default tool and local language.
 - **Built for developer text:** the prompt asks the Agent to preserve markdown, code blocks, URLs, placeholders, product names, and line breaks where appropriate.
 - **Small native binary:** the Homebrew install uses the release binary and does not require Node.js.
@@ -34,10 +34,12 @@ Install with Homebrew:
 brew install potato4d/tap/translate-cli
 ```
 
-Make sure at least one supported Agent CLI is installed and available on `PATH`:
+Make sure at least one supported tool is installed and available on `PATH`:
 
 - `codex`
 - `claude`
+- `ollama` with at least one local model
+- `lms` from LM Studio with at least one local LLM model
 
 Then run setup once:
 
@@ -66,6 +68,8 @@ For example, with `local_lang = "ja"`:
 | `t "Please check this spec"` | Translates to Japanese |
 | `t ja "Good morning"` | Translates to Japanese |
 | `t --tool claude fr "Good morning"` | Uses Claude and translates to French |
+| `t --tool ollama ja "Good morning"` | Uses a local Ollama model |
+| `t --tool lmstudio ja "Good morning"` | Uses a local LM Studio model |
 
 The output is intentionally plain, so it composes with other shell tools:
 
@@ -75,7 +79,7 @@ pbpaste | t en
 cat docs/notes.md | t ja > /tmp/notes.ja.md
 ```
 
-## Supported Agent CLIs
+## Supported Tools
 
 ### Codex
 
@@ -91,6 +95,24 @@ t --tool codex "この文章を英語にして"
 
 ```sh
 t --tool claude ja "Summarize this in Japanese."
+```
+
+### Ollama
+
+`t` detects installed Ollama models with `ollama ls` and runs `ollama run <model> <prompt>`. Setup recommends Ollama ahead of other first-run choices when it is installed and has a local model available, because it is the most common local LLM runner this CLI can use directly.
+
+```sh
+ollama pull gemma3
+t --tool ollama ja "Summarize this in Japanese."
+```
+
+### LM Studio
+
+`t` detects LM Studio models through `lms ps --json` and `lms ls --llm --json`, then runs `lms chat <model> -p <prompt>`. `--tool lms` is accepted as an alias for `--tool lmstudio`.
+
+```sh
+t --tool lmstudio ja "Summarize this in Japanese."
+t --tool lms ja "Summarize this in Japanese."
 ```
 
 ## Configuration
@@ -116,12 +138,23 @@ enabled = true
 
 [tools.claude]
 enabled = true
+
+[tools.ollama]
+enabled = true
+model = "gemma3:latest"
+
+[tools.lmstudio]
+enabled = true
+model = "lmstudio-community/gemma-3-4b-it"
 ```
 
 Environment overrides:
 
 - `TRANSLATE_CLI_CONFIG`: use a custom config path
 - `TRANSLATE_CLI_TOOL`: override the default tool when `--tool` is not supplied
+- `TRANSLATE_CLI_OLLAMA_MODEL`: override the Ollama model
+- `TRANSLATE_CLI_LMSTUDIO_MODEL`: override the LM Studio model
+- `TRANSLATE_CLI_LMS_MODEL`: alias for `TRANSLATE_CLI_LMSTUDIO_MODEL`
 
 ## Install From Source
 
@@ -142,7 +175,8 @@ t --tool <tool> <text>
 t --tool <tool> <lang> <text>
 
 Options:
-  --tool <codex|claude>  Use a specific Agent CLI
+  --tool <codex|claude|ollama|lmstudio>
+                        Use a specific Agent CLI or local LLM
   --setup               Run first-run setup
   --no-wizard           Fail instead of running setup automatically
   --version             Print version

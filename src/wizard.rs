@@ -2,7 +2,7 @@ use std::io::{self, Write};
 use std::path::Path;
 
 use crate::agent::{detect_all, recommended_tool, DetectionResult, DetectionRuntime};
-use crate::config::{default_config, save_config, Config};
+use crate::config::{default_config, save_config, Config, ToolConfig};
 use crate::error::{AppError, AppResult, EXIT_TOOL_NOT_FOUND};
 use crate::input::{read_all_stdin, stdin_is_terminal};
 use crate::lang::{detect_local_language, must_language};
@@ -17,16 +17,36 @@ pub fn run_wizard(config_path: &Path, initial_config: Config) -> AppResult<Confi
         existing_default: config.default_tool.clone(),
         env_tool: std::env::var("TRANSLATE_CLI_TOOL").unwrap_or_default(),
         skip_auth: false,
+        tool_enabled: config
+            .tools
+            .iter()
+            .map(|(id, tool)| (id.clone(), tool.enabled))
+            .collect(),
+        tool_models: config
+            .tools
+            .iter()
+            .map(|(id, tool)| (id.clone(), tool.model.clone()))
+            .collect(),
     };
     let results = detect_all(&runtime);
-    let tools = results
+    let detected_tools = results
         .into_iter()
         .filter(|result| result.found)
         .collect::<Vec<_>>();
+    let tools = detected_tools
+        .iter()
+        .filter(|result| result.non_interactive)
+        .cloned()
+        .collect::<Vec<_>>();
     if tools.is_empty() {
+        let hint = if detected_tools.is_empty() {
+            "Install one of: codex, claude, ollama, LM Studio (lms). Then run: t --setup"
+                .to_string()
+        } else {
+            "For Ollama run: ollama pull gemma3. For LM Studio download/load a model or run: lms get. Then run: t --setup".to_string()
+        };
         return Err(
-            AppError::new(EXIT_TOOL_NOT_FOUND, "no supported Agent CLI found")
-                .with_hint("Install one of: codex, claude. Then run: t --setup"),
+            AppError::new(EXIT_TOOL_NOT_FOUND, "no ready translation tool found").with_hint(hint),
         );
     }
 
@@ -48,15 +68,15 @@ pub fn run_wizard(config_path: &Path, initial_config: Config) -> AppResult<Confi
     };
 
     eprintln!("Translate CLI setup\n");
-    eprintln!("Translate CLI sends text to the selected Agent CLI.");
-    eprintln!("The Agent CLI may send it to its configured model provider.");
+    eprintln!("Translate CLI sends text to the selected tool.");
+    eprintln!("That tool may send it to its configured model provider.");
     eprintln!("Translate CLI does not store API keys.\n");
     eprintln!(
         "Detected your local language: {} ({})\n",
         local.name, local.code
     );
     eprintln!("Available tools:");
-    for (index, tool) in tools.iter().enumerate() {
+    for (index, tool) in detected_tools.iter().enumerate() {
         eprintln!("  {}. {:<6} {}", index + 1, tool.id, tool.status);
     }
     eprintln!();
@@ -89,6 +109,18 @@ pub fn run_wizard(config_path: &Path, initial_config: Config) -> AppResult<Confi
     }
 
     config.default_tool = selected;
+    if let Some(tool) = tools.iter().find(|tool| tool.id == config.default_tool) {
+        if !tool.model.is_empty() {
+            config
+                .tools
+                .entry(tool.id.clone())
+                .or_insert_with(|| ToolConfig {
+                    enabled: true,
+                    model: String::new(),
+                })
+                .model = tool.model.clone();
+        }
+    }
     config.local_lang = local.code;
     if config.timeout_ms == 0 {
         config.timeout_ms = crate::config::default_timeout_ms();

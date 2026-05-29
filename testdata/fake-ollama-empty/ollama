@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+case "${1:-}" in
+  ls|list)
+    printf 'NAME            ID              SIZE      MODIFIED\n'
+    ;;
+  *)
+    echo "fake-ollama-empty: unexpected command ${1:-}" >&2
+    exit 64
+    ;;
+esac

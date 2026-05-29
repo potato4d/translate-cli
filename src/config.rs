@@ -7,10 +7,12 @@ use crate::error::{AppError, AppResult, EXIT_CONFIG};
 use crate::lang::detect_local_language;
 
 const DEFAULT_TIMEOUT_MS: u64 = 60_000;
+const DEFAULT_TOOL_IDS: &[&str] = &["codex", "claude", "ollama", "lmstudio"];
 
 #[derive(Clone, Debug)]
 pub struct ToolConfig {
     pub enabled: bool,
+    pub model: String,
 }
 
 #[derive(Clone, Debug)]
@@ -28,8 +30,15 @@ pub fn default_timeout_ms() -> u64 {
 
 pub fn default_config() -> Config {
     let mut tools = HashMap::new();
-    tools.insert("codex".to_string(), ToolConfig { enabled: true });
-    tools.insert("claude".to_string(), ToolConfig { enabled: true });
+    for id in DEFAULT_TOOL_IDS {
+        tools.insert(
+            (*id).to_string(),
+            ToolConfig {
+                enabled: true,
+                model: String::new(),
+            },
+        );
+    }
     Config {
         version: 1,
         default_tool: String::new(),
@@ -68,25 +77,30 @@ pub fn save_config(config_path: &Path, config: &Config) -> AppResult<()> {
         }
     }
 
-    let codex_enabled = config
-        .tools
-        .get("codex")
-        .map(|tool| tool.enabled)
-        .unwrap_or(false);
-    let claude_enabled = config
-        .tools
-        .get("claude")
-        .map(|tool| tool.enabled)
-        .unwrap_or(false);
-    let body = format!(
-        "version = {}\ndefault_tool = {}\nlocal_lang = {}\ntimeout_ms = {}\n\n[tools.codex]\nenabled = {}\n\n[tools.claude]\nenabled = {}\n",
-        if config.version == 0 { 1 } else { config.version },
+    let mut body = format!(
+        "version = {}\ndefault_tool = {}\nlocal_lang = {}\ntimeout_ms = {}\n",
+        if config.version == 0 {
+            1
+        } else {
+            config.version
+        },
         json_string(&config.default_tool),
         json_string(&config.local_lang),
-        if config.timeout_ms == 0 { DEFAULT_TIMEOUT_MS } else { config.timeout_ms },
-        codex_enabled,
-        claude_enabled
+        if config.timeout_ms == 0 {
+            DEFAULT_TIMEOUT_MS
+        } else {
+            config.timeout_ms
+        },
     );
+    for id in DEFAULT_TOOL_IDS {
+        let tool = config.tools.get(*id);
+        let enabled = tool.map(|tool| tool.enabled).unwrap_or(false);
+        let model = tool.map(|tool| tool.model.as_str()).unwrap_or("");
+        body.push_str(&format!("\n[tools.{id}]\nenabled = {enabled}\n"));
+        if !model.is_empty() {
+            body.push_str(&format!("model = {}\n", json_string(model)));
+        }
+    }
 
     let mut options = fs::OpenOptions::new();
     options.create(true).write(true).truncate(true);
@@ -148,15 +162,16 @@ fn parse_config(config: &mut Config, data: &str) -> Result<(), String> {
         let value = line[eq + 1..].trim();
         if section.is_empty() {
             parse_root_value(config, key, value)?;
-        } else if section == "tools.codex" || section == "tools.claude" {
-            let id = section.trim_start_matches("tools.").to_string();
-            if key == "enabled" {
-                config.tools.insert(
-                    id,
-                    ToolConfig {
-                        enabled: parse_bool(value, key)?,
-                    },
-                );
+        } else if let Some(id) = section.strip_prefix("tools.") {
+            let id = id.to_string();
+            let current = config.tools.entry(id).or_insert_with(|| ToolConfig {
+                enabled: true,
+                model: String::new(),
+            });
+            match key {
+                "enabled" => current.enabled = parse_bool(value, key)?,
+                "model" => current.model = parse_string(value, key)?,
+                _ => {}
             }
         }
     }

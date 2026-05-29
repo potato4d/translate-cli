@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -18,12 +19,16 @@ use crate::prompt::{build_plain_text_prompt, build_prompt};
 
 const JSON_SCHEMA: &str = r#"{"type":"object","properties":{"translated_text":{"type":"string"}},"required":["translated_text"],"additionalProperties":false}"#;
 const MAX_CODEX_PROMPT_ARG_BYTES: usize = 16 * 1024;
+const MAX_LOCAL_PROMPT_ARG_BYTES: usize = 16 * 1024;
+const SUPPORTED_TOOLS: &[&str] = &["codex", "claude", "ollama", "lmstudio"];
 
 #[derive(Clone, Debug)]
 pub struct DetectionRuntime {
     pub existing_default: String,
     pub env_tool: String,
     pub skip_auth: bool,
+    pub tool_enabled: HashMap<String, bool>,
+    pub tool_models: HashMap<String, String>,
 }
 
 #[derive(Clone, Debug)]
@@ -34,6 +39,7 @@ pub struct DetectionResult {
     pub non_interactive: bool,
     pub score: i32,
     pub status: String,
+    pub model: String,
 }
 
 #[derive(Clone, Debug)]
@@ -42,6 +48,11 @@ pub struct TranslationRequest {
     pub target_lang: Option<Language>,
     pub local_lang: Language,
     pub mode: TranslationMode,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct RunOptions {
+    pub model: String,
 }
 
 #[derive(Clone, Debug)]
@@ -71,18 +82,46 @@ pub fn by_id(id: &str) -> Option<&'static str> {
     match id {
         "codex" => Some("codex"),
         "claude" => Some("claude"),
+        "ollama" => Some("ollama"),
+        "lmstudio" | "lms" => Some("lmstudio"),
         _ => None,
     }
 }
 
+pub fn available_tools_hint() -> String {
+    format!(
+        "available tools: {} (alias: lms)",
+        SUPPORTED_TOOLS.join(", ")
+    )
+}
+
 pub fn detect_all(runtime: &DetectionRuntime) -> Vec<DetectionResult> {
-    vec![detect("codex", runtime), detect("claude", runtime)]
+    vec![
+        detect("codex", runtime),
+        detect("claude", runtime),
+        detect("ollama", runtime),
+        detect("lmstudio", runtime),
+    ]
 }
 
 pub fn detect(id: &str, runtime: &DetectionRuntime) -> DetectionResult {
-    match id {
+    let canonical = by_id(id).unwrap_or(id);
+    if !tool_enabled(canonical, runtime) {
+        return DetectionResult {
+            id: canonical.to_string(),
+            found: false,
+            authenticated: false,
+            non_interactive: false,
+            score: 0,
+            status: "disabled".to_string(),
+            model: String::new(),
+        };
+    }
+    match canonical {
         "codex" => detect_codex(runtime),
         "claude" => detect_claude(runtime),
+        "ollama" => detect_ollama(runtime),
+        "lmstudio" => detect_lmstudio(runtime),
         _ => DetectionResult {
             id: id.to_string(),
             found: false,
@@ -90,6 +129,7 @@ pub fn detect(id: &str, runtime: &DetectionRuntime) -> DetectionResult {
             non_interactive: false,
             score: 0,
             status: "not found".to_string(),
+            model: String::new(),
         },
     }
 }
@@ -97,12 +137,17 @@ pub fn detect(id: &str, runtime: &DetectionRuntime) -> DetectionResult {
 pub fn recommended_tool(results: &[DetectionResult]) -> Option<DetectionResult> {
     results
         .iter()
-        .filter(|result| result.found)
+        .filter(|result| result.found && result.non_interactive)
         .max_by_key(|result| result.score)
         .cloned()
 }
 
-pub fn run_agent(tool_id: &str, req: &TranslationRequest, timeout_ms: u64) -> AppResult<String> {
+pub fn run_agent(
+    tool_id: &str,
+    req: &TranslationRequest,
+    timeout_ms: u64,
+    options: &RunOptions,
+) -> AppResult<String> {
     let effective_timeout = if timeout_ms == 0 {
         default_timeout_ms()
     } else {
@@ -115,7 +160,7 @@ pub fn run_agent(tool_id: &str, req: &TranslationRequest, timeout_ms: u64) -> Ap
         schema_path: temp_dir.path.join("schema.json"),
         last_message_path: temp_dir.path.join("last-message.json"),
     };
-    let spec = build_command(tool_id, req, &runtime)?;
+    let spec = build_command(tool_id, req, &runtime, options)?;
     let raw = if spec.stream_json {
         run_streaming_json(&spec, tool_id, effective_timeout)?
     } else {
@@ -133,6 +178,7 @@ fn detect_codex(runtime: &DetectionRuntime) -> DetectionResult {
         non_interactive: false,
         score: 0,
         status: "not found".to_string(),
+        model: String::new(),
     };
     if !result.found {
         result.score = score(
@@ -191,7 +237,86 @@ fn detect_claude(runtime: &DetectionRuntime) -> DetectionResult {
             "not found"
         }
         .to_string(),
+        model: String::new(),
     };
+    result.score = score(
+        &result.id,
+        result.found,
+        result.authenticated,
+        result.non_interactive,
+        runtime,
+    );
+    result
+}
+
+fn detect_ollama(runtime: &DetectionRuntime) -> DetectionResult {
+    let found_path = look_path("ollama");
+    let mut result = DetectionResult {
+        id: "ollama".to_string(),
+        found: found_path.is_some(),
+        authenticated: false,
+        non_interactive: false,
+        score: 0,
+        status: "not found".to_string(),
+        model: String::new(),
+    };
+    if !result.found {
+        result.score = score(
+            &result.id,
+            result.found,
+            result.authenticated,
+            result.non_interactive,
+            runtime,
+        );
+        return result;
+    }
+
+    if let Some(model) = resolve_detected_model("ollama", runtime, detect_ollama_model) {
+        result.model = model;
+        result.non_interactive = true;
+        result.status = format!("found, model {}", result.model);
+    } else {
+        result.status = "found, no local models (run: ollama pull gemma3)".to_string();
+    }
+    result.score = score(
+        &result.id,
+        result.found,
+        result.authenticated,
+        result.non_interactive,
+        runtime,
+    );
+    result
+}
+
+fn detect_lmstudio(runtime: &DetectionRuntime) -> DetectionResult {
+    let found_path = look_path("lms");
+    let mut result = DetectionResult {
+        id: "lmstudio".to_string(),
+        found: found_path.is_some(),
+        authenticated: false,
+        non_interactive: false,
+        score: 0,
+        status: "not found".to_string(),
+        model: String::new(),
+    };
+    if !result.found {
+        result.score = score(
+            &result.id,
+            result.found,
+            result.authenticated,
+            result.non_interactive,
+            runtime,
+        );
+        return result;
+    }
+
+    if let Some(model) = resolve_detected_model("lmstudio", runtime, detect_lmstudio_model) {
+        result.model = model;
+        result.non_interactive = true;
+        result.status = format!("found, model {}", result.model);
+    } else {
+        result.status = "found, no local LLM models (open LM Studio or run: lms get)".to_string();
+    }
     result.score = score(
         &result.id,
         result.found,
@@ -206,15 +331,18 @@ fn build_command(
     tool_id: &str,
     req: &TranslationRequest,
     runtime: &RuntimeContext,
+    options: &RunOptions,
 ) -> AppResult<ExecSpec> {
-    match tool_id {
+    match by_id(tool_id).unwrap_or(tool_id) {
         "codex" => Ok(build_codex_command(req, runtime)),
         "claude" => Ok(build_claude_command(req)),
+        "ollama" => build_ollama_command(req, options),
+        "lmstudio" => build_lmstudio_command(req, options),
         _ => Err(AppError::new(
             crate::error::EXIT_ARGS,
             format!("unsupported tool: {tool_id}"),
         )
-        .with_hint("available tools: codex, claude")),
+        .with_hint(available_tools_hint())),
     }
 }
 
@@ -295,6 +423,48 @@ fn build_claude_command(req: &TranslationRequest) -> ExecSpec {
     }
 }
 
+fn build_ollama_command(req: &TranslationRequest, options: &RunOptions) -> AppResult<ExecSpec> {
+    let model = runtime_model("ollama", options, detect_ollama_model)?;
+    let prompt = build_plain_text_prompt(req);
+    let mut args = vec!["run".to_string(), model];
+    let mut stdin = String::new();
+    if prompt.len() <= MAX_LOCAL_PROMPT_ARG_BYTES {
+        args.push(prompt);
+    } else {
+        stdin = prompt;
+    }
+    Ok(ExecSpec {
+        command: "ollama".to_string(),
+        args,
+        stdin,
+        work_dir: PathBuf::new(),
+        stream_json: false,
+    })
+}
+
+fn build_lmstudio_command(req: &TranslationRequest, options: &RunOptions) -> AppResult<ExecSpec> {
+    let model = runtime_model("lmstudio", options, detect_lmstudio_model)?;
+    let prompt = build_plain_text_prompt(req);
+    let mut args = vec!["chat".to_string(), model, "-p".to_string()];
+    let mut stdin = String::new();
+    if prompt.len() <= MAX_LOCAL_PROMPT_ARG_BYTES {
+        args.push(prompt);
+    } else {
+        args.push(
+            "Follow the translation instructions from stdin. Return only the translated text."
+                .to_string(),
+        );
+        stdin = prompt;
+    }
+    Ok(ExecSpec {
+        command: "lms".to_string(),
+        args,
+        stdin,
+        work_dir: PathBuf::new(),
+        stream_json: false,
+    })
+}
+
 fn extract_result(tool_id: &str, raw: &ExecResult) -> AppResult<String> {
     match tool_id {
         "codex" => {
@@ -306,6 +476,7 @@ fn extract_result(tool_id: &str, raw: &ExecResult) -> AppResult<String> {
             normalize_allow_raw(source)
         }
         "claude" => normalize_allow_raw(&raw.stdout),
+        "ollama" | "lmstudio" => normalize_allow_raw(&raw.stdout),
         _ => normalize_allow_raw(&raw.stdout),
     }
 }
@@ -545,6 +716,255 @@ fn run_status_with_timeout(
     }
 }
 
+fn run_output_with_timeout(
+    command: &str,
+    args: &[&str],
+    timeout: Duration,
+) -> std::io::Result<Option<String>> {
+    let mut child = Command::new(command)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()?;
+    let stdout = child.stdout.take().expect("stdout is piped");
+    let stdout_thread = read_to_string_thread(stdout);
+    let deadline = Instant::now() + timeout;
+    loop {
+        if let Some(status) = child.try_wait()? {
+            let stdout = stdout_thread.join().unwrap_or_default();
+            return Ok(status.success().then_some(stdout));
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_thread.join();
+            return Ok(None);
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn resolve_detected_model<F>(
+    id: &str,
+    runtime: &DetectionRuntime,
+    detect_model: F,
+) -> Option<String>
+where
+    F: FnOnce() -> Option<String>,
+{
+    env_model(id)
+        .or_else(|| configured_model(id, runtime))
+        .or_else(detect_model)
+}
+
+fn runtime_model<F>(id: &str, options: &RunOptions, detect_model: F) -> AppResult<String>
+where
+    F: FnOnce() -> Option<String>,
+{
+    env_model(id)
+        .or_else(|| non_empty(options.model.clone()))
+        .or_else(detect_model)
+        .ok_or_else(|| {
+            AppError::new(
+                crate::error::EXIT_CONFIG,
+                format!("{id} model is not configured"),
+            )
+            .with_hint(model_setup_hint(id))
+        })
+}
+
+fn env_model(id: &str) -> Option<String> {
+    let key = format!("TRANSLATE_CLI_{}_MODEL", id.to_uppercase());
+    env::var(key).ok().and_then(non_empty).or_else(|| {
+        if id == "lmstudio" {
+            env::var("TRANSLATE_CLI_LMS_MODEL").ok().and_then(non_empty)
+        } else {
+            None
+        }
+    })
+}
+
+fn configured_model(id: &str, runtime: &DetectionRuntime) -> Option<String> {
+    runtime
+        .tool_models
+        .get(id)
+        .cloned()
+        .or_else(|| {
+            if id == "lmstudio" {
+                runtime.tool_models.get("lms").cloned()
+            } else {
+                None
+            }
+        })
+        .and_then(non_empty)
+}
+
+fn tool_enabled(id: &str, runtime: &DetectionRuntime) -> bool {
+    runtime
+        .tool_enabled
+        .get(id)
+        .copied()
+        .or_else(|| {
+            if id == "lmstudio" {
+                runtime.tool_enabled.get("lms").copied()
+            } else {
+                None
+            }
+        })
+        .unwrap_or(true)
+}
+
+fn non_empty(value: String) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn model_setup_hint(id: &str) -> &'static str {
+    match id {
+        "ollama" => "run: ollama pull gemma3; then run: t --setup",
+        "lmstudio" => "open LM Studio and download a model, or run: lms get; then run: t --setup",
+        _ => "run: t --setup",
+    }
+}
+
+fn detect_ollama_model() -> Option<String> {
+    let stdout = run_output_with_timeout("ollama", &["ls"], Duration::from_secs(3)).ok()??;
+    first_model(parse_ollama_models(&stdout))
+}
+
+fn parse_ollama_models(stdout: &str) -> Vec<String> {
+    stdout
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with("NAME") {
+                return None;
+            }
+            let name = trimmed.split_whitespace().next()?;
+            is_model_candidate(name).then(|| name.to_string())
+        })
+        .collect()
+}
+
+fn detect_lmstudio_model() -> Option<String> {
+    for args in [
+        &["ps", "--json"][..],
+        &["ls", "--llm", "--json"][..],
+        &["ps"][..],
+        &["ls", "--llm"][..],
+    ] {
+        let Some(stdout) = run_output_with_timeout("lms", args, Duration::from_secs(3))
+            .ok()
+            .flatten()
+        else {
+            continue;
+        };
+        let models = if args.contains(&"--json") {
+            parse_lmstudio_json_models(&stdout)
+        } else {
+            parse_lmstudio_text_models(&stdout)
+        };
+        if let Some(model) = first_model(models) {
+            return Some(model);
+        }
+    }
+    None
+}
+
+fn parse_lmstudio_json_models(stdout: &str) -> Vec<String> {
+    let Ok(value) = serde_json::from_str::<Value>(stdout) else {
+        return Vec::new();
+    };
+    let mut models = Vec::new();
+    collect_model_candidates(&value, &mut models);
+    models
+}
+
+fn collect_model_candidates(value: &Value, models: &mut Vec<String>) {
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                collect_model_candidates(value, models);
+            }
+        }
+        Value::Object(map) => {
+            for key in ["identifier", "id", "model", "modelKey", "name", "path"] {
+                if let Some(model) = map
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .filter(|value| is_model_candidate(value))
+                {
+                    push_unique_model(models, model);
+                }
+            }
+            for value in map.values() {
+                collect_model_candidates(value, models);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn parse_lmstudio_text_models(stdout: &str) -> Vec<String> {
+    let mut models = Vec::new();
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Some(model) = trimmed.strip_prefix("Identifier:") {
+            push_unique_model(&mut models, model.trim());
+            continue;
+        }
+        let Some(candidate) = trimmed.split_whitespace().next() else {
+            continue;
+        };
+        if is_model_candidate(candidate) {
+            push_unique_model(&mut models, candidate);
+        }
+    }
+    models
+}
+
+fn first_model(models: Vec<String>) -> Option<String> {
+    models.into_iter().find(|model| is_model_candidate(model))
+}
+
+fn push_unique_model(models: &mut Vec<String>, value: &str) {
+    let Some(model) = non_empty(value.to_string()) else {
+        return;
+    };
+    if is_model_candidate(&model) && !models.iter().any(|existing| existing == &model) {
+        models.push(model);
+    }
+}
+
+fn is_model_candidate(value: &str) -> bool {
+    let trimmed = value.trim();
+    if trimmed.is_empty() || trimmed.chars().any(char::is_whitespace) {
+        return false;
+    }
+    !matches!(
+        trimmed,
+        "NAME"
+            | "ID"
+            | "SIZE"
+            | "MODIFIED"
+            | "LLMs"
+            | "Embedding"
+            | "Embeddings"
+            | "Models"
+            | "PARAMS"
+            | "ARCHITECTURE"
+    ) && !trimmed.starts_with("...")
+        && !trimmed.ends_with(':')
+}
+
 fn score(
     id: &str,
     found: bool,
@@ -555,6 +975,7 @@ fn score(
     let mut total = 0;
     if found {
         total += 50;
+        total += popularity_score(id);
     }
     if authenticated {
         total += 30;
@@ -562,13 +983,25 @@ fn score(
     if non_interactive {
         total += 20;
     }
-    if runtime.existing_default == id {
+    let existing_default = by_id(&runtime.existing_default).unwrap_or(&runtime.existing_default);
+    let env_tool = by_id(&runtime.env_tool).unwrap_or(&runtime.env_tool);
+    if existing_default == id {
         total += 100;
     }
-    if runtime.env_tool == id {
+    if env_tool == id {
         total += 100;
     }
     total
+}
+
+fn popularity_score(id: &str) -> i32 {
+    match id {
+        "ollama" => 80,
+        "lmstudio" => 60,
+        "codex" => 20,
+        "claude" => 10,
+        _ => 0,
+    }
 }
 
 fn temp_work_dir() -> PathBuf {
@@ -646,5 +1079,63 @@ mod tests {
         assert!(spec.args.contains(&"--ignore-user-config".to_string()));
         assert!(spec.args.contains(&"gpt-5.3-codex-spark".to_string()));
         assert_eq!(spec.stdin, "");
+    }
+
+    #[test]
+    fn parses_ollama_ls_models() {
+        let models = parse_ollama_models(
+            "NAME            ID              SIZE      MODIFIED\ngemma3:latest   abc123          3.3 GB    1 hour ago\n",
+        );
+        assert_eq!(models, vec!["gemma3:latest"]);
+    }
+
+    #[test]
+    fn parses_lmstudio_json_models() {
+        let models =
+            parse_lmstudio_json_models(r#"[{"identifier":"lmstudio-community/gemma-3-4b-it"}]"#);
+        assert_eq!(models, vec!["lmstudio-community/gemma-3-4b-it"]);
+    }
+
+    #[test]
+    fn builds_ollama_command_with_configured_model() {
+        let req = TranslationRequest {
+            text: "hello".to_string(),
+            target_lang: Some(must_language("ja")),
+            local_lang: must_language("en"),
+            mode: TranslationMode::Target,
+        };
+        let spec = build_ollama_command(
+            &req,
+            &RunOptions {
+                model: "gemma3:latest".to_string(),
+            },
+        )
+        .unwrap();
+        assert_eq!(spec.command, "ollama");
+        assert_eq!(spec.args[0], "run");
+        assert_eq!(spec.args[1], "gemma3:latest");
+        assert!(spec.args[2].contains("Return only the translated text."));
+    }
+
+    #[test]
+    fn builds_lmstudio_command_with_configured_model() {
+        let req = TranslationRequest {
+            text: "hello".to_string(),
+            target_lang: Some(must_language("ja")),
+            local_lang: must_language("en"),
+            mode: TranslationMode::Target,
+        };
+        let spec = build_lmstudio_command(
+            &req,
+            &RunOptions {
+                model: "lmstudio-community/gemma-3-4b-it".to_string(),
+            },
+        )
+        .unwrap();
+        assert_eq!(spec.command, "lms");
+        assert_eq!(spec.args[0], "chat");
+        assert_eq!(spec.args[1], "lmstudio-community/gemma-3-4b-it");
+        assert_eq!(spec.args[2], "-p");
+        assert!(spec.args[3].contains("Return only the translated text."));
     }
 }

@@ -70,6 +70,12 @@ pub fn agent_run_error(
             .with_hint("Run: codex"),
         "claude" => AppError::new(EXIT_AGENT, format!("claude failed to run: {message}"))
             .with_hint("Run: claude"),
+        "ollama" => AppError::new(EXIT_AGENT, format!("ollama failed to run: {message}"))
+            .with_hint("Run: ollama pull gemma3"),
+        "lmstudio" | "lms" => {
+            AppError::new(EXIT_AGENT, format!("lmstudio failed to run: {message}"))
+                .with_hint("Open LM Studio or run: lms")
+        }
         _ => AppError::new(EXIT_AGENT, format!("{id} failed to run: {message}")),
     }
 }

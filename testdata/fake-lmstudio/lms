@@ -1,0 +1,46 @@
+#!/bin/sh
+set -eu
+
+case "${1:-}" in
+  ps)
+    if [ "${2:-}" = "--json" ]; then
+      printf '[{"identifier":"lmstudio-community/gemma-3-4b-it"}]\n'
+    else
+      printf 'LOADED MODELS\n\n'
+      printf 'Identifier: lmstudio-community/gemma-3-4b-it\n'
+    fi
+    ;;
+  ls)
+    if [ "${2:-}" = "--llm" ] && [ "${3:-}" = "--json" ]; then
+      printf '[{"identifier":"lmstudio-community/gemma-3-4b-it"}]\n'
+    else
+      printf 'LLMs (Large Language Models) PARAMS ARCHITECTURE SIZE\n'
+      printf 'lmstudio-community/gemma-3-4b-it 4B Gemma 3.3 GB\n'
+    fi
+    ;;
+  chat)
+    [ "${2:-}" = "lmstudio-community/gemma-3-4b-it" ] || exit 65
+    shift 2
+    has_prompt=0
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        -p|--prompt)
+          case "${2:-}" in
+            *"Return only the translated text."*) has_prompt=1 ;;
+            *) echo "fake-lmstudio: prompt missing raw text instruction" >&2; exit 68 ;;
+          esac
+          shift 2
+          ;;
+        *)
+          shift
+          ;;
+      esac
+    done
+    [ "$has_prompt" -eq 1 ] || exit 67
+    printf 'こんにちは\n'
+    ;;
+  *)
+    echo "fake-lmstudio: unexpected command ${1:-}" >&2
+    exit 64
+    ;;
+esac

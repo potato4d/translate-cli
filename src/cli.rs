@@ -102,7 +102,8 @@ pub fn usage() -> &'static str {
   t --tool <tool> <lang> <text>
 
 Options:
-  --tool <codex|claude>  Use a specific Agent CLI
+  --tool <codex|claude|ollama|lmstudio>
+                        Use a specific Agent CLI or local LLM
   --setup               Run first-run setup
   --no-wizard           Fail instead of running setup automatically
   --version             Print version
@@ -151,7 +152,7 @@ mod tests {
     #[test]
     fn usage_keeps_cli_shape() {
         assert!(usage().contains("t <lang> <text>"));
-        assert!(usage().contains("--tool <codex|claude>"));
+        assert!(usage().contains("--tool <codex|claude|ollama|lmstudio>"));
         assert!(usage().contains("--setup"));
     }
 }
